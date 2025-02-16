@@ -1,6 +1,7 @@
 package name.blackcap.socialbutterfly.tools.bluesky
 
 import io.ktor.client.call.*
+import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -111,34 +112,48 @@ object Subcommands {
         val platform = config.platforms[channel.platform] as BlueskyPlatform
         val credentials = channel.credentials as BlueskyCredentials
         /* need to add auto-refresh here */
-        makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
-            runBlocking {
-                val response = httpClient.post("https://${platform.host}/xrpc/com.atproto.repo.createRecord") {
-                    contentType(ContentType.Application.Json)
-                    setBody(buildJsonObject {
-                        put("repo", credentials.did)
-                        put("collection", "app.bsky.feed.post")
-                        putJsonObject("record") {
-                            put("\$type", "app.bsky.feed.post")
-                            put("text", contents)
-                            put("createdAt", BSKY_DATE_FORMAT.format(Date()))
-                            putJsonArray("langs") { add("en-CA") }
+        runBlocking {
+            for (attempts in 1..2) {
+                val j = makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+                    val response = httpClient.post("https://${platform.host}/xrpc/com.atproto.repo.createRecord") {
+                        contentType(ContentType.Application.Json)
+                        setBody(buildJsonObject {
+                            put("repo", credentials.did)
+                            put("collection", "app.bsky.feed.post")
+                            putJsonObject("record") {
+                                put("\$type", "app.bsky.feed.post")
+                                put("text", contents)
+                                put("createdAt", BSKY_DATE_FORMAT.format(Date()))
+                                putJsonArray("langs") { add("en-CA") }
+                            }
+                        })
+                    }
+                    if (response.status.isSuccess()) {
+                        val responseJson: JsonElement = response.body()
+                        if (responseJson is JsonObject) {
+                            return@use responseJson
                         }
-                    })
+                        printError("response is not JsonObject")
+                        exitProcess(1)
+                    }
+                    if (shouldRetry(response)) {
+                        doRefresh(channel)
+                        return@use null
+                    } else {
+                        verifyResponse(response) /* generate std error and die */
+                        exitProcess(1) /* redundant, to keep Kotlin happy */
+                    }
                 }
-                verifyResponse(response)
-                val responseJson: JsonElement = response.body()
-                if (responseJson is JsonObject) {
+                if (j != null) {
                     val prettyPrinter = Json {
                         prettyPrint = true
                     }
-                    prettyPrinter.encodeToStream(responseJson, System.out)
+                    prettyPrinter.encodeToStream(j, System.out)
                     println()
-                } else {
-                    printError("response is not JsonObject")
-                    exitProcess(1)
+                    return@runBlocking
                 }
             }
+            printError("token refresh failed")
         }
     }
 
@@ -195,4 +210,61 @@ private suspend fun verifyResponse(dubious: HttpResponse) {
         printError("body is: ${dubious.bodyAsText()}")
         exitProcess(1)
     }
+}
+
+private suspend fun doRefresh(channel: Channel) {
+    val host = config.platforms[channel.platform]?.host!!
+    val credentials = channel.credentials as BlueskyCredentials
+    /* markAsRefreshTokenRequest() is not available in stable versions of Ktor,
+       so must create a new client object to avoid infinite recursion */
+    makeHttpClient(json = true).use { httpClient ->
+        printError("refreshing via token")
+        val refreshResponse = httpClient.post("https://${host}/xrpc/com.atproto.server.refreshSession") {
+            bearerAuth(credentials.refreshToken)
+        }
+        if (refreshResponse.status.isSuccess()) {
+            val refreshJson: JsonElement = refreshResponse.body()
+            if (refreshJson is JsonObject) {
+                val newCredentials = makeCredentials(credentials.username, credentials.password, refreshJson)
+                credentials.token = newCredentials.token
+                credentials.refreshToken = newCredentials.refreshToken
+                return
+            }
+        }
+        printError("refresh token failed, creating new tokens")
+        val tokenResponse = httpClient.post("https://${host}/xrpc/com.atproto.server.createSession") {
+            contentType(ContentType.Application.Json)
+            setBody(buildJsonObject {
+                put("identifier", credentials.username)
+                put("password", credentials.password)
+            })
+        }
+        if (tokenResponse.status.isSuccess()) {
+            val tokenJson: JsonElement = tokenResponse.body()
+            if (tokenJson is JsonObject) {
+                val newCredentials = makeCredentials(credentials.username, credentials.password, tokenJson)
+                credentials.token = newCredentials.token
+                credentials.refreshToken = newCredentials.refreshToken
+                return
+            }
+        }
+        printError("creating new tokens failed")
+        exitProcess(1)
+    }
+}
+
+/* stupid bluesky sometimes returns 400 instead of 401 for an expired token, sigh */
+private suspend fun shouldRetry(failed: HttpResponse): Boolean {
+    if (failed.status.value == 401) {
+        return true
+    } else if (failed.status.value == 400) {
+        val jsonBody: JsonElement = failed.body()
+        if (jsonBody is JsonObject) {
+            val error = jsonBody["error"]
+            if (error is JsonPrimitive) {
+                return error.content == "ExpiredToken"
+            }
+        }
+    }
+    return false
 }

@@ -12,7 +12,7 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 
 fun makeHttpClient(json: Boolean = false, bearerToken: String? = null,
-                   refreshCallback: ((RefreshTokensParams) -> BearerTokens)? = null) =
+                   refreshCallback: (RefreshTokensParams.() -> BearerTokens)? = null) =
     HttpClient(Java) {
         if (json) {
             install(ContentNegotiation) {
