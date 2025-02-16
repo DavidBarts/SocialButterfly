@@ -1,0 +1,257 @@
+package name.blackcap.socialbutterfly.tools.twitter
+
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.*
+import name.blackcap.socialbutterfly.jschema.*
+import name.blackcap.socialbutterfly.lib.*
+import java.awt.Desktop
+import java.awt.GraphicsEnvironment
+import java.net.URI
+import java.util.*
+import kotlin.system.exitProcess
+
+lateinit var config: Config
+lateinit var state: State
+
+fun main(args: Array<String>) {
+    setName("twitter")
+    if (args.isEmpty()) {
+        printError("expecting subcommend")
+        exitProcess(2)
+    }
+    val key = getPassword("Key: ", true)
+    loadConfigState(key).run { config = first; state = second }
+    val subcommand = args[0]
+    val scArgs = args.sliceArray(1 until args.size)
+    val method = Subcommands::class.members.firstOrNull { it.name == subcommand }
+    if (method == null) {
+        printError("${see(subcommand)} - unknown subcommand")
+        exitProcess(1)
+    } else {
+        method.call(Subcommands, scArgs)
+    }
+    saveConfig(config, key)
+    saveState(state)
+}
+
+private const val REDIRECT_URI = "https://blackcap.name/cgi-bin/display_code,state.cgi"
+private const val SCOPES = "offline.access tweet.read tweet.write users.read"
+
+object Subcommands {
+    fun create(args: Array<String>) {
+        if (args.size != 1) {
+            printError("expecting Twitter client ID")
+            exitProcess(2)
+        }
+        val appId = args[0]
+        val exists = config.platforms.values.firstOrNull { it is TwitterPlatform }
+        if (exists != null) {
+            printError("twitter platform already exists")
+            exitProcess(1)
+        }
+        val newPlatform = TwitterPlatform(clientId = appId)
+        val id = config.platforms.store(newPlatform)
+        println("platform ${id} created")
+    }
+
+    fun token(args: Array<String>) {
+        if (args.size != 1) {
+            printError("expecting a platform ID (and nothing else)")
+            exitProcess(2)
+        }
+        val platformId = args[0]
+        val platform = config.platforms[args[0]]
+        if (platform == null) {
+            printError("platform ${see(platformId)} not found")
+            exitProcess(1)
+        }
+        if (platform !is TwitterPlatform) {
+            printError("${see(platformId)} is not a twitter platform")
+            exitProcess(1)
+        }
+        val (challenge, verifier) = pkcePair()
+        val state = UUID.randomUUID().toString()
+        val url = URLBuilder().run {
+            protocol = URLProtocol.HTTPS
+            host = "x.com"
+            path("/i/oauth2/authorize")
+            parameters.run {
+                append("response_type", "code")
+                append("client_id", platform.clientId)
+                append("redirect_uri", REDIRECT_URI)
+                append("scope", SCOPES)
+                append("state", state)
+                append("code_challenge", challenge)
+                append("code_challenge_method", "S256")
+            }
+            buildString()
+        }
+        if (Desktop.isDesktopSupported() && !GraphicsEnvironment.isHeadless()) {
+            println("Use the browser to log in to Twitter and give SocialButterfly")
+            println("access to your account.")
+            Desktop.getDesktop().browse(URI(url))
+        } else {
+            println("Use your browser to navigate to the following URL:")
+            println(url)
+        }
+
+        /* XXX -- commented out because of tight 30-second limit */
+        /* while (true) {
+            val state2 = readLine("Enter state: ")
+            if (state == state2) {
+                break
+            }
+            printError("invalid entry, please try again")
+        } */
+        val code = readLine("Enter code: ")
+        makeHttpClient(json = true).use { httpClient ->
+            runBlocking {
+                val tokenResponse = httpClient.submitForm(
+                    url = "https://${platform.host}/2/oauth2/token",
+                    formParameters = parameters {
+                        append("code", code)
+                        append("grant_type", "authorization_code")
+                        append("client_id", platform.clientId)
+                        append("redirect_uri", REDIRECT_URI)
+                        append("code_verifier", verifier)
+                    }
+                )
+                verifyResponse(tokenResponse)
+                val tokenJson: JsonElement = tokenResponse.body()
+                /* debug */
+                val prettyPrinter = Json {
+                    prettyPrint = true
+                }
+                prettyPrinter.encodeToStream(tokenJson, System.out)
+                println()
+                /* gubed */
+                if (tokenJson is JsonObject) {
+                    val token = (tokenJson["access_token"] as JsonPrimitive).content
+                    val refreshToken = (tokenJson["refresh_token"] as JsonPrimitive).content
+                    val expiresIn = (tokenJson["expires_in"] as JsonPrimitive).long
+                    /* TODO: obtain refresh token, if available */
+                    val chanId = config.channels.store(
+                        Channel(platform = platformId, credentials = makeCredentials(tokenJson)))
+                    println("channel ${see(chanId)} created")
+                } else {
+                    printError("response is not JsonObject")
+                    exitProcess(1)
+                }
+            }
+        }
+    }
+
+    fun post(args: Array<String>) {
+        if (args.size != 1) {
+            printError("expecting channel ID (and nothing else)")
+            exitProcess(2)
+        }
+        val channelId = args[0]
+        val channel = config.channels[channelId]
+        if (channel == null) {
+            printError("${see(channelId)} - unknown channel ID")
+            exitProcess(1)
+        }
+        val contents = readLine("Enter post: ")
+        val platform = config.platforms[channel.platform] as TwitterPlatform
+        refreshIfNeeded(channel)
+        val credentials = channel.credentials as TwitterCredentials
+        makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+            runBlocking {
+                val response = httpClient.post("https://${platform.host}/2/tweets") {
+                    contentType(ContentType.Application.Json)
+                    setBody(buildJsonObject {
+                        put("text", contents)
+                    })
+                }
+                verifyResponse(response)
+                val responseJson: JsonElement = response.body()
+                val postId = ((responseJson as JsonObject)["data"] as JsonObject)["id"]
+                println("post ${postId} created")
+            }
+        }
+    }
+
+    fun get(args: Array<String>) {
+        if (args.size != 2) {
+            printError("expecting channel ID and post (tweet) ID")
+            exitProcess(2)
+        }
+        val channelId = args[0]
+        val postId = args[1]
+        val channel = config.channels[channelId]
+        if (channel == null) {
+            printError("${see(channelId)} - unknown channel ID")
+            exitProcess(1)
+        }
+        val host = config.platforms[channel.platform]?.host
+        refreshIfNeeded(channel)
+        val credentials = channel.credentials as TwitterCredentials
+        makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+            runBlocking {
+                val getResponse = httpClient.get("https://${host}/2/tweets/${postId}")
+                verifyResponse(getResponse)
+                val getJson: JsonElement = getResponse.body()
+                val prettyPrinter = Json {
+                    prettyPrint = true
+                }
+                prettyPrinter.encodeToStream(getJson, System.out)
+                println()
+            }
+        }
+    }
+}
+
+private fun makeCredentials(jsonElement: JsonElement): TwitterCredentials {
+    val jsonObject = jsonElement as JsonObject
+    val token = (jsonObject["access_token"] as JsonPrimitive).content
+    val refreshToken = (jsonObject["refresh_token"] as JsonPrimitive).content
+    val expiresIn = (jsonObject["expires_in"] as JsonPrimitive).long
+    return TwitterCredentials(
+        username = "(unknown)", token = token, refreshToken = refreshToken,
+        tokenExpires = System.currentTimeMillis() + expiresIn * 1000L)
+}
+
+private suspend fun verifyResponse(dubious: HttpResponse) {
+    if (!dubious.status.isSuccess()) {
+        printError("unexpected ${dubious.status.value} response")
+        printError("body is: ${dubious.bodyAsText()}")
+        exitProcess(1)
+    }
+}
+
+private fun refreshIfNeeded(channel: Channel) {
+    val SLOP: Long = 5L * 60L * 1000L  /* 5 minutes */
+    val credentials = channel.credentials as? TwitterCredentials
+        ?: throw IllegalArgumentException("not a twitter channel")
+    val platform = config.platforms[channel.platform] as TwitterPlatform
+    if (System.currentTimeMillis() - SLOP > credentials.tokenExpires) {
+        println("refreshing old token")
+        runBlocking {
+            val refreshResponse = makeHttpClient(json = true).use {
+                it.submitForm(
+                    url = "https://${platform.host}/2/oauth2/token",
+                    formParameters = parameters {
+                        append("refresh_token", credentials.refreshToken)
+                        append("grant_type", "refresh_token")
+                        append("client_id", platform.clientId)
+                    }
+                )
+            }
+            verifyResponse(refreshResponse)
+            channel.credentials.let {
+                makeCredentials(refreshResponse.body()).run {
+                    it.token = token
+                    it.tokenExpires = tokenExpires
+                    it.refreshToken = refreshToken
+                }
+            }
+        }
+    }
+}
+
