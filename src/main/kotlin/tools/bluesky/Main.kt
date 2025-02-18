@@ -1,5 +1,6 @@
 package name.blackcap.socialbutterfly.tools.bluesky
 
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.request.*
@@ -16,7 +17,7 @@ import kotlin.system.exitProcess
 lateinit var config: Config
 lateinit var state: State
 
-val BSKY_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'000Z'").apply {
+private val BSKY_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'000Z'").apply {
     timeZone = TimeZone.getTimeZone("GMT")
 }
 
@@ -113,47 +114,36 @@ object Subcommands {
         val credentials = channel.credentials as BlueskyCredentials
         /* need to add auto-refresh here */
         runBlocking {
-            for (attempts in 1..2) {
-                val j = makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
-                    val response = httpClient.post("https://${platform.host}/xrpc/com.atproto.repo.createRecord") {
-                        contentType(ContentType.Application.Json)
-                        setBody(buildJsonObject {
-                            put("repo", credentials.did)
-                            put("collection", "app.bsky.feed.post")
-                            putJsonObject("record") {
-                                put("\$type", "app.bsky.feed.post")
-                                put("text", contents)
-                                put("createdAt", BSKY_DATE_FORMAT.format(Date()))
-                                putJsonArray("langs") { add("en-CA") }
-                            }
-                        })
-                    }
-                    if (response.status.isSuccess()) {
-                        val responseJson: JsonElement = response.body()
-                        if (responseJson is JsonObject) {
-                            return@use responseJson
+            makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+                val response = doAuthRequest(
+                    makeRequest = {
+                        httpClient.post("https://${platform.host}/xrpc/com.atproto.repo.createRecord") {
+                            contentType(ContentType.Application.Json)
+                            bearerAuth(credentials.token)
+                            setBody(buildJsonObject {
+                                put("repo", credentials.did)
+                                put("collection", "app.bsky.feed.post")
+                                putJsonObject("record") {
+                                    put("\$type", "app.bsky.feed.post")
+                                    put("text", contents)
+                                    put("createdAt", BSKY_DATE_FORMAT.format(Date()))
+                                    putJsonArray("langs") { add("en-CA") }
+                                }
+                            })
                         }
-                        printError("response is not JsonObject")
-                        exitProcess(1)
-                    }
-                    if (shouldRetry(response)) {
-                        doRefresh(channel)
-                        return@use null
-                    } else {
-                        verifyResponse(response) /* generate std error and die */
-                        exitProcess(1) /* redundant, to keep Kotlin happy */
-                    }
-                }
-                if (j != null) {
-                    val prettyPrinter = Json {
-                        prettyPrint = true
-                    }
-                    prettyPrinter.encodeToStream(j, System.out)
-                    println()
-                    return@runBlocking
+                    },
+                    shouldRefreshAfter = ::shouldRetry,
+                    refreshAfter = { doRefresh(httpClient, channel) }
+                )
+                verifyResponse(response)
+                val responseJson: JsonElement = response.body()
+                if (responseJson is JsonObject) {
+                    prettyPrint(responseJson)
+                } else {
+                    printError("response is not JsonObject")
+                    exitProcess(1)
                 }
             }
-            printError("token refresh failed")
         }
     }
 
@@ -186,15 +176,18 @@ object Subcommands {
                     }
                 }
                 verifyResponse(getResponse)
-                val getJson: JsonElement = getResponse.body()
-                val prettyPrinter = Json {
-                    prettyPrint = true
-                }
-                prettyPrinter.encodeToStream(getJson, System.out)
-                println()
+                prettyPrint(getResponse.body())
             }
         }
     }
+}
+
+private fun prettyPrint(data: JsonElement) {
+    val prettyPrinter = Json {
+        prettyPrint = true
+    }
+    prettyPrinter.encodeToStream(data, System.out)
+    println()
 }
 
 private fun makeCredentials(username: String, password: String, jsonObject: JsonObject): BlueskyCredentials {
@@ -212,45 +205,40 @@ private suspend fun verifyResponse(dubious: HttpResponse) {
     }
 }
 
-private suspend fun doRefresh(channel: Channel) {
+private suspend fun doRefresh(httpClient: HttpClient, channel: Channel) {
     val host = config.platforms[channel.platform]?.host!!
     val credentials = channel.credentials as BlueskyCredentials
-    /* markAsRefreshTokenRequest() is not available in stable versions of Ktor,
-       so must create a new client object to avoid infinite recursion */
-    makeHttpClient(json = true).use { httpClient ->
-        printError("refreshing via token")
-        val refreshResponse = httpClient.post("https://${host}/xrpc/com.atproto.server.refreshSession") {
-            bearerAuth(credentials.refreshToken)
-        }
-        if (refreshResponse.status.isSuccess()) {
-            val refreshJson: JsonElement = refreshResponse.body()
-            if (refreshJson is JsonObject) {
-                val newCredentials = makeCredentials(credentials.username, credentials.password, refreshJson)
-                credentials.token = newCredentials.token
-                credentials.refreshToken = newCredentials.refreshToken
-                return
-            }
-        }
-        printError("refresh token failed, creating new tokens")
-        val tokenResponse = httpClient.post("https://${host}/xrpc/com.atproto.server.createSession") {
-            contentType(ContentType.Application.Json)
-            setBody(buildJsonObject {
-                put("identifier", credentials.username)
-                put("password", credentials.password)
-            })
-        }
-        if (tokenResponse.status.isSuccess()) {
-            val tokenJson: JsonElement = tokenResponse.body()
-            if (tokenJson is JsonObject) {
-                val newCredentials = makeCredentials(credentials.username, credentials.password, tokenJson)
-                credentials.token = newCredentials.token
-                credentials.refreshToken = newCredentials.refreshToken
-                return
-            }
-        }
-        printError("creating new tokens failed")
-        exitProcess(1)
+    printError("refreshing via token")
+    val refreshResponse = httpClient.post("https://${host}/xrpc/com.atproto.server.refreshSession") {
+        bearerAuth(credentials.refreshToken)
     }
+    if (refreshResponse.status.isSuccess()) {
+        val refreshJson: JsonElement = refreshResponse.body()
+        if (refreshJson is JsonObject) {
+            val newCredentials = makeCredentials(credentials.username, credentials.password, refreshJson)
+            credentials.token = newCredentials.token
+            credentials.refreshToken = newCredentials.refreshToken
+            return
+        }
+    }
+    printError("refresh token failed, creating new tokens")
+    val tokenResponse = httpClient.post("https://${host}/xrpc/com.atproto.server.createSession") {
+        contentType(ContentType.Application.Json)
+        setBody(buildJsonObject {
+            put("identifier", credentials.username)
+            put("password", credentials.password)
+        })
+    }
+    if (tokenResponse.status.isSuccess()) {
+        val tokenJson: JsonElement = tokenResponse.body()
+        if (tokenJson is JsonObject) {
+            val newCredentials = makeCredentials(credentials.username, credentials.password, tokenJson)
+            credentials.token = newCredentials.token
+            credentials.refreshToken = newCredentials.refreshToken
+            return
+        }
+    }
+    throw TokenRefreshException("creating new tokens failed")
 }
 
 /* stupid bluesky sometimes returns 400 instead of 401 for an expired token, sigh */

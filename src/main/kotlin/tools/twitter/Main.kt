@@ -1,5 +1,6 @@
 package name.blackcap.socialbutterfly.tools.twitter
 
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
@@ -131,10 +132,6 @@ object Subcommands {
                 println()
                 /* gubed */
                 if (tokenJson is JsonObject) {
-                    val token = (tokenJson["access_token"] as JsonPrimitive).content
-                    val refreshToken = (tokenJson["refresh_token"] as JsonPrimitive).content
-                    val expiresIn = (tokenJson["expires_in"] as JsonPrimitive).long
-                    /* TODO: obtain refresh token, if available */
                     val chanId = config.channels.store(
                         Channel(platform = platformId, credentials = makeCredentials(tokenJson)))
                     println("channel ${see(chanId)} created")
@@ -159,16 +156,22 @@ object Subcommands {
         }
         val contents = readLine("Enter post: ")
         val platform = config.platforms[channel.platform] as TwitterPlatform
-        refreshIfNeeded(channel)
         val credentials = channel.credentials as TwitterCredentials
-        makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+        makeHttpClient(json = true).use { httpClient ->
             runBlocking {
-                val response = httpClient.post("https://${platform.host}/2/tweets") {
-                    contentType(ContentType.Application.Json)
-                    setBody(buildJsonObject {
-                        put("text", contents)
-                    })
-                }
+                val response = doAuthRequest(
+                    shouldRefreshBefore = { shouldRefresh(credentials) },
+                    refreshBefore = { doRefresh(httpClient, channel) },
+                    makeRequest = {
+                        httpClient.post("https://${platform.host}/2/tweets") {
+                            bearerAuth(credentials.token)
+                            contentType(ContentType.Application.Json)
+                            setBody(buildJsonObject {
+                                put("text", contents)
+                            })
+                        }
+                    }
+                )
                 verifyResponse(response)
                 val responseJson: JsonElement = response.body()
                 val postId = ((responseJson as JsonObject)["data"] as JsonObject)["id"]
@@ -190,11 +193,18 @@ object Subcommands {
             exitProcess(1)
         }
         val host = config.platforms[channel.platform]?.host
-        refreshIfNeeded(channel)
         val credentials = channel.credentials as TwitterCredentials
-        makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+        makeHttpClient(json = true).use { httpClient ->
             runBlocking {
-                val getResponse = httpClient.get("https://${host}/2/tweets/${postId}")
+                val getResponse = doAuthRequest(
+                    shouldRefreshBefore = { shouldRefresh(credentials) },
+                    refreshBefore = { doRefresh(httpClient, channel) },
+                    makeRequest = {
+                        httpClient.get("https://${host}/2/tweets/${postId}") {
+                            bearerAuth(credentials.token)
+                        }
+                    }
+                )
                 verifyResponse(getResponse)
                 val getJson: JsonElement = getResponse.body()
                 val prettyPrinter = Json {
@@ -225,31 +235,35 @@ private suspend fun verifyResponse(dubious: HttpResponse) {
     }
 }
 
-private fun refreshIfNeeded(channel: Channel) {
+private suspend fun shouldRefresh(credentials: TwitterCredentials): Boolean {
     val SLOP: Long = 5L * 60L * 1000L  /* 5 minutes */
+    return System.currentTimeMillis() - SLOP > credentials.tokenExpires
+}
+
+private suspend fun doRefresh(httpClient: HttpClient, channel: Channel) {
     val credentials = channel.credentials as? TwitterCredentials
         ?: throw IllegalArgumentException("not a twitter channel")
     val platform = config.platforms[channel.platform] as TwitterPlatform
-    if (System.currentTimeMillis() - SLOP > credentials.tokenExpires) {
-        println("refreshing old token")
-        runBlocking {
-            val refreshResponse = makeHttpClient(json = true).use {
-                it.submitForm(
-                    url = "https://${platform.host}/2/oauth2/token",
-                    formParameters = parameters {
-                        append("refresh_token", credentials.refreshToken)
-                        append("grant_type", "refresh_token")
-                        append("client_id", platform.clientId)
-                    }
-                )
-            }
-            verifyResponse(refreshResponse)
-            channel.credentials.let {
-                makeCredentials(refreshResponse.body()).run {
-                    it.token = token
-                    it.tokenExpires = tokenExpires
-                    it.refreshToken = refreshToken
+    println("refreshing old token")
+    runBlocking {
+        val refreshResponse = makeHttpClient(json = true).use {
+            it.submitForm(
+                url = "https://${platform.host}/2/oauth2/token",
+                formParameters = parameters {
+                    append("refresh_token", credentials.refreshToken)
+                    append("grant_type", "refresh_token")
+                    append("client_id", platform.clientId)
                 }
+            )
+        }
+        if(!refreshResponse.status.isSuccess()) {
+            throw TokenRefreshException("refresh failed with status ${refreshResponse.status.value}")
+        }
+        channel.credentials.let {
+            makeCredentials(refreshResponse.body()).run {
+                it.token = token
+                it.tokenExpires = tokenExpires
+                it.refreshToken = refreshToken
             }
         }
     }
