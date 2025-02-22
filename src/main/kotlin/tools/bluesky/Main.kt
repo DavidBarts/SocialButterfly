@@ -6,10 +6,12 @@ import io.ktor.client.plugins.auth.providers.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.util.cio.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import name.blackcap.socialbutterfly.jschema.*
 import name.blackcap.socialbutterfly.lib.*
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.system.exitProcess
@@ -17,7 +19,7 @@ import kotlin.system.exitProcess
 lateinit var config: Config
 lateinit var state: State
 
-private val BSKY_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'000Z'").apply {
+private val BSKY_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").apply {
     timeZone = TimeZone.getTimeZone("GMT")
 }
 
@@ -114,7 +116,7 @@ object Subcommands {
         val credentials = channel.credentials as BlueskyCredentials
         /* need to add auto-refresh here */
         runBlocking {
-            makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+            makeHttpClient(json = true).use { httpClient ->
                 val response = doAuthRequest(
                     makeRequest = {
                         httpClient.post("https://${platform.host}/xrpc/com.atproto.repo.createRecord") {
@@ -145,6 +147,98 @@ object Subcommands {
                 }
             }
         }
+    }
+
+    fun image(args: Array<String>) {
+        if (args.size != 1) {
+            printError("expecting channel ID (and nothing else)")
+            exitProcess(2)
+        }
+        val channelId = args[0]
+        val channel = config.channels[channelId]
+        if (channel == null) {
+            printError("${see(channelId)} - unknown channel ID")
+            exitProcess(1)
+        }
+        val platform = config.platforms[channel.platform] as BlueskyPlatform
+        val credentials = channel.credentials as BlueskyCredentials
+        val text = readLine("Post text: ")
+        val imageName = readLine("Post image: ")
+        val imageFile = File(imageName)
+        val imageProblem = verifyImage(imageFile)
+        if (imageProblem != null) {
+            printError("invalid image: ${imageProblem}")
+            exitProcess(1)
+        }
+        val altText = readLine("Alt text: ")
+        val imageType = getMimeType(imageFile)
+        /* bluesky provides no way to tell in advance when a token is going to expire.
+           it only tells us after the fact. stupid design, particularly when one is
+           doing a big upload that might end up getting retried. so we do a get session
+           call first, because it's cheap */
+        makeHttpClient(json = true).use { httpClient ->
+            runBlocking {
+                println("session inquiry...")
+                val sessionResponse = doAuthRequest(
+                    makeRequest = {
+                        httpClient.get("https://${platform.host}/xrpc/com.atproto.server.getSession") {
+                            bearerAuth(credentials.token)
+                        }
+                    },
+                    shouldRefreshAfter = ::shouldRetry,
+                    refreshAfter = { doRefresh(httpClient, channel) }
+                )
+                verifyResponse(sessionResponse)
+                println("image upload...")
+                val uploadResponse = doAuthRequest(
+                    makeRequest = {
+                        httpClient.post("https://${platform.host}/xrpc/com.atproto.repo.uploadBlob") {
+                            header(HttpHeaders.ContentType, imageType)
+                            bearerAuth(credentials.token)
+                            setBody(imageFile.readChannel())
+                        }
+                    },
+                    shouldRefreshAfter = ::shouldRetry,
+                    refreshAfter = { doRefresh(httpClient, channel) }
+                )
+                verifyResponse(uploadResponse)
+                val jsonBlob: JsonObject = uploadResponse.body()
+                println("post...")
+                val postResponse = doAuthRequest(
+                    makeRequest = {
+                        httpClient.post("https://${platform.host}/xrpc/com.atproto.repo.createRecord") {
+                            contentType(ContentType.Application.Json)
+                            bearerAuth(credentials.token)
+                            setBody(buildJsonObject {
+                                put("repo", credentials.did)
+                                put("collection", "app.bsky.feed.post")
+                                putJsonObject("record") {
+                                    put("\$type", "app.bsky.feed.post")
+                                    put("text", text)
+                                    put("createdAt", BSKY_DATE_FORMAT.format(Date()))
+                                    putJsonArray("langs") { add("en-CA") }
+                                    putJsonObject("embed") {
+                                        put("\$type", "app.bsky.embed.images")
+                                        putJsonArray("images") {
+                                            addJsonObject {
+                                                put("alt", altText)
+                                                put("image", jsonBlob["blob"]!!)
+                                            }
+                                        }
+                                    }
+                                }
+                            })
+                        }
+                    },
+                    shouldRefreshAfter = ::shouldRetry,
+                    refreshAfter = { doRefresh(httpClient, channel) }
+                )
+                verifyResponse(postResponse)
+                val responseJson: JsonObject = postResponse.body()
+                prettyPrint(responseJson)
+            }
+        }
+
     }
 
     fun get(args: Array<String>) {

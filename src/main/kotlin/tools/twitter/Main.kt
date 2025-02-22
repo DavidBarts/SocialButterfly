@@ -6,12 +6,15 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import name.blackcap.socialbutterfly.jschema.*
 import name.blackcap.socialbutterfly.lib.*
 import java.awt.Desktop
 import java.awt.GraphicsEnvironment
+import java.io.File
 import java.net.URI
 import java.util.*
 import kotlin.system.exitProcess
@@ -41,7 +44,7 @@ fun main(args: Array<String>) {
 }
 
 private const val REDIRECT_URI = "https://blackcap.name/cgi-bin/display_code,state.cgi"
-private const val SCOPES = "offline.access tweet.read tweet.write users.read"
+private const val SCOPES = "offline.access tweet.read tweet.write users.read media.write"
 
 object Subcommands {
     fun create(args: Array<String>) {
@@ -101,14 +104,6 @@ object Subcommands {
             println(url)
         }
 
-        /* XXX -- commented out because of tight 30-second limit */
-        /* while (true) {
-            val state2 = readLine("Enter state: ")
-            if (state == state2) {
-                break
-            }
-            printError("invalid entry, please try again")
-        } */
         val code = readLine("Enter code: ")
         makeHttpClient(json = true).use { httpClient ->
             runBlocking {
@@ -141,6 +136,48 @@ object Subcommands {
                 }
             }
         }
+        while (true) {
+            val state2 = readLine("Enter state: ")
+            if (state == state2) {
+                break
+            }
+            printError("invalid entry, please try again")
+        }
+    }
+
+    fun revoke(args: Array<String>) {
+        if (args.size != 1) {
+            printError("expecting channel ID (and nothing else)")
+            exitProcess(2)
+        }
+        val channelId = args[0]
+        val channel = config.channels[channelId]
+        if (channel == null) {
+            printError("${see(channelId)} - unknown channel ID")
+            exitProcess(1)
+        }
+        val credentials = channel.credentials as? TwitterCredentials
+        if (credentials == null) {
+            printError("${see(channelId)} - is not a twitter channel")
+            exitProcess(1)
+        }
+        val platform = config.platforms[channel.platform] as TwitterPlatform
+        makeHttpClient(json = true).use { httpClient ->
+            runBlocking {
+                val tokenResponse = httpClient.submitForm(
+                    url = "https://${platform.host}/2/oauth2/revoke",
+                    formParameters = parameters {
+                        append("token", credentials.token)
+                        append("client_id", platform.clientId)
+                    }
+                )
+                verifyResponse(tokenResponse)
+            }
+        }
+        config.distributions.values.forEach {
+            it.remove(channelId)
+        }
+        config.channels.remove(channelId)
     }
 
     fun post(args: Array<String>) {
@@ -176,6 +213,111 @@ object Subcommands {
                 val responseJson: JsonElement = response.body()
                 val postId = ((responseJson as JsonObject)["data"] as JsonObject)["id"]
                 println("post ${postId} created")
+            }
+        }
+    }
+
+    fun image(args: Array<String>) {
+        /* post an image (together with text) */
+        if (args.size != 1) {
+            printError("expecting channel ID (and nothing else)")
+            exitProcess(2)
+        }
+        val channelId = args[0]
+        val channel = config.channels[channelId]
+        if (channel == null) {
+            printError("${see(channelId)} - unknown channel ID")
+            exitProcess(1)
+        }
+        val text = readLine("Post text: ")
+        val imageName = readLine("Post image: ")
+        val imageFile = File(imageName)
+        val imageProblem = verifyImage(imageFile)
+        if (imageProblem != null) {
+            printError("invalid image: ${imageProblem}")
+            exitProcess(1)
+        }
+        val imageType = getMimeType(imageFile)
+        val platform = config.platforms[channel.platform] as TwitterPlatform
+        val credentials = channel.credentials as TwitterCredentials
+        makeHttpClient(json = true).use { httpClient ->
+            runBlocking {
+                println("initializing...")
+                val initResponse = doAuthRequest(
+                    shouldRefreshBefore = { shouldRefresh(credentials) },
+                    refreshBefore = { doRefresh(httpClient, channel) },
+                    makeRequest = {
+                        httpClient.submitForm(
+                            url = "https://${platform.host}/2/media/upload",
+                            formParameters = parameters {
+                                append("command", "INIT")
+                                append("media_type", imageType)
+                                append("total_bytes", imageFile.length().toString())
+                                append("media_category", "tweet_image")
+                            }
+                        ) { bearerAuth(credentials.token) }
+                    }
+                )
+                verifyResponse(initResponse)
+                val mediaId = (((initResponse.body() as JsonObject)["data"] as JsonObject)["id"] as JsonPrimitive).content
+                println("uploading...")
+                val imageBytes = withContext(Dispatchers.IO) { imageFile.readBytes() }
+                val uploadResponse = doAuthRequest(
+                    shouldRefreshBefore = { shouldRefresh(credentials) },
+                    refreshBefore = { doRefresh(httpClient, channel) },
+                    makeRequest = {
+                        httpClient.submitFormWithBinaryData(
+                            url = "https://${platform.host}/2/media/upload",
+                            formData = formData {
+                                append("command", "APPEND")
+                                append("media_id", mediaId)
+                                append("segment_index", "0")
+                                append("media", imageBytes, Headers.build {
+                                    append(HttpHeaders.ContentType, imageType)
+                                    append(HttpHeaders.ContentDisposition, "filename=\"${sanitizedName(imageFile)}\"")
+                                })
+                            }
+                        ) { bearerAuth(credentials.token) }
+                    }
+                )
+                verifyResponse(uploadResponse)
+                println("finalizing...")
+                val finalizeResponse = doAuthRequest(
+                    shouldRefreshBefore = { shouldRefresh(credentials) },
+                    refreshBefore = { doRefresh(httpClient, channel) },
+                    makeRequest = {
+                        httpClient.submitForm(
+                            url = "https://${platform.host}/2/media/upload",
+                            formParameters = parameters {
+                                append("command", "FINALIZE")
+                                append("media_id", mediaId)
+                            }
+                        ) { bearerAuth(credentials.token) }
+                    }
+                )
+                verifyResponse(finalizeResponse)
+                println("posting...")
+                val postResponse = doAuthRequest(
+                    shouldRefreshBefore = { shouldRefresh(credentials) },
+                    refreshBefore = { doRefresh(httpClient, channel) },
+                    makeRequest = {
+                        httpClient.post("https://${platform.host}/2/tweets") {
+                            bearerAuth(credentials.token)
+                            contentType(ContentType.Application.Json)
+                            setBody(buildJsonObject {
+                                put("text", text)
+                                putJsonObject("media") {
+                                    putJsonArray("media_ids") {
+                                        add(mediaId)
+                                    }
+                                }
+                            })
+                        }
+                    }
+                )
+                verifyResponse(postResponse)
+                val postId = (((postResponse.body() as JsonObject)["data"] as JsonObject)["id"] as JsonPrimitive).content
+                println("post ${postId} created with image ${mediaId}")
             }
         }
     }
@@ -268,4 +410,3 @@ private suspend fun doRefresh(httpClient: HttpClient, channel: Channel) {
         }
     }
 }
-

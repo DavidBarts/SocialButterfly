@@ -4,14 +4,18 @@ package name.blackcap.socialbutterfly.tools.mastodon
 
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import name.blackcap.socialbutterfly.jschema.*
 import name.blackcap.socialbutterfly.lib.*
 import java.awt.Desktop
 import java.awt.GraphicsEnvironment
+import java.io.File
 import java.net.URI
 import java.util.*
 import kotlin.system.exitProcess
@@ -40,8 +44,8 @@ fun main(args: Array<String>) {
     saveState(state)
 }
 
-private const val REDIRECT_URI = "https://blackcap.name/cgi-bin/display_code.cgi"
-private const val SCOPES = "read:statuses write:statuses"
+private const val REDIRECT_URI = "https://blackcap.name/cgi-bin/display_code,state.cgi"
+private const val SCOPES = "read:statuses write:statuses write:media"
 
 object Subcommands {
     fun create(args: Array<String>) {
@@ -127,8 +131,6 @@ object Subcommands {
             println("Use your browser to navigate to the following URL:")
             println(url)
         }
-        println("url = $url")
-        // return
         val code = readLine("Enter code: ")
         makeHttpClient(json = true).use { httpClient ->
             runBlocking {
@@ -156,6 +158,13 @@ object Subcommands {
                     exitProcess(1)
                 }
             }
+        }
+        while (true) {
+            val state2 = readLine("Enter state: ")
+            if (state == state2) {
+                break
+            }
+            printError("invalid entry, please try again")
         }
     }
 
@@ -187,6 +196,65 @@ object Subcommands {
                 val postJson: JsonElement = response.body()
                 val postId = ((postJson as JsonObject)["id"] as JsonPrimitive).content
                 println("post ${postId} created")
+            }
+        }
+    }
+
+    fun image(args: Array<String>) {
+        if (args.size != 1) {
+            printError("expecting channel ID (and nothing else)")
+            exitProcess(2)
+        }
+        val channelId = args[0]
+        val channel = config.channels[channelId]
+        if (channel == null) {
+            printError("${see(channelId)} - unknown channel ID")
+            exitProcess(1)
+        }
+        val platform = config.platforms[channel.platform] as MastodonPlatform
+        val credentials = channel.credentials as MastodonCredentials
+        val text = readLine("Post text: ")
+        val imageName = readLine("Post image: ")
+        val imageFile = File(imageName)
+        val imageProblem = verifyImage(imageFile)
+        if (imageProblem != null) {
+            printError("invalid image: ${imageProblem}")
+            exitProcess(1)
+        }
+        val altText = readLine("Alt text: ")
+        val imageType = getMimeType(imageFile)
+        makeHttpClient(json = true, bearerToken = credentials.token).use { httpClient ->
+            runBlocking {
+                println("uploading...")
+                val imageBytes = withContext(Dispatchers.IO) { imageFile.readBytes() }
+                val imageResponse = httpClient.submitFormWithBinaryData(
+                    url = "https://${platform.host}/api/v2/media",
+                    formData = formData {
+                        append("description", altText)
+                        append("file", imageBytes, Headers.build {
+                            append(HttpHeaders.ContentType, imageType)
+                            append(HttpHeaders.ContentDisposition, "filename=\"${sanitizedName(imageFile)}\"")
+                        })
+                    }
+                )
+                verifyResponse(imageResponse)
+                val imageId = ((imageResponse.body() as JsonObject)["id"] as JsonPrimitive).content
+                println("posting...")
+                val postResponse = httpClient.post("https://${platform.host}/api/v1/statuses") {
+                    contentType(ContentType.Application.Json)
+                    setBody(buildJsonObject {
+                        put("status", text)
+                        putJsonArray("media_ids") {
+                            add(imageId)
+                        }
+                        put("visibility", "public")
+                        put("language", "en")
+                    })
+                }
+                verifyResponse(postResponse)
+                val postJson: JsonElement = postResponse.body()
+                val postId = ((postJson as JsonObject)["id"] as JsonPrimitive).content
+                println("post ${postId} created with image ${imageId}")
             }
         }
     }
