@@ -3,17 +3,10 @@ package name.blackcap.socialbutterfly.lib
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import name.blackcap.socialbutterfly.jschema.*
-import java.io.File
-import java.util.UUID
+import java.util.*
 
 /* for managing configuration (more sensitive, less volatile) and state
    more volatile, less sensitive */
-
-/* TODO: store these in a system-appropriate place, not just in CWD */
-private val CONFIG_FILE = File("config.json.aes")
-private val STATE_FILE = File("state.json")
-
-const val APPNAME = "SocialButterfly"
 
 fun loadConfigState(key: CharArray): Pair<Config, State> {
     val config = if (CONFIG_FILE.exists()) {

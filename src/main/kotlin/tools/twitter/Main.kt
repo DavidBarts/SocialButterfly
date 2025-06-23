@@ -16,6 +16,8 @@ import java.awt.Desktop
 import java.awt.GraphicsEnvironment
 import java.io.File
 import java.net.URI
+import java.time.Instant
+import java.time.Duration
 import java.util.*
 import kotlin.system.exitProcess
 
@@ -175,7 +177,7 @@ object Subcommands {
             }
         }
         config.distributions.values.forEach {
-            it.remove(channelId)
+            it.channels.remove(channelId)
         }
         config.channels.remove(channelId)
     }
@@ -366,7 +368,7 @@ private fun makeCredentials(jsonElement: JsonElement): TwitterCredentials {
     val expiresIn = (jsonObject["expires_in"] as JsonPrimitive).long
     return TwitterCredentials(
         username = "(unknown)", token = token, refreshToken = refreshToken,
-        tokenExpires = System.currentTimeMillis() + expiresIn * 1000L)
+        tokenExpires = Instant.now() + Duration.ofSeconds(expiresIn))
 }
 
 private suspend fun verifyResponse(dubious: HttpResponse) {
@@ -378,8 +380,7 @@ private suspend fun verifyResponse(dubious: HttpResponse) {
 }
 
 private suspend fun shouldRefresh(credentials: TwitterCredentials): Boolean {
-    val SLOP: Long = 5L * 60L * 1000L  /* 5 minutes */
-    return System.currentTimeMillis() - SLOP > credentials.tokenExpires
+    return Instant.now() - Duration.ofMinutes(5) > credentials.tokenExpires
 }
 
 private suspend fun doRefresh(httpClient: HttpClient, channel: Channel) {

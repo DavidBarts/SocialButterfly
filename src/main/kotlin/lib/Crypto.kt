@@ -53,3 +53,5 @@ fun getSecretKey(password: CharArray, salt: ByteArray): SecretKey {
     val spec = PBEKeySpec(password, salt, ITERATIONS, KEY_LENGTH)
     return SecretKeySpec(factory.generateSecret(spec).encoded, KEY_ALGORITHM)
 }
+
+fun CharArray.clear() = indices.forEach { this[it] = '\u0000' }

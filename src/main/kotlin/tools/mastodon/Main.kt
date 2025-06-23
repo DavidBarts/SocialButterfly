@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import name.blackcap.socialbutterfly.Application
 import name.blackcap.socialbutterfly.jschema.*
 import name.blackcap.socialbutterfly.lib.*
 import java.awt.Desktop
@@ -55,7 +56,7 @@ object Subcommands {
         }
         val host = args[0]
         makeHttpClient(json = true).use { httpClient ->
-            val clientName = APPNAME + " " + config.installation
+            val clientName = Application.MYNAME.replace(" ", "") + " " + config.installation
             runBlocking {
                 val response = httpClient.post("https://${host}//api/v1/apps") {
                     contentType(ContentType.Application.Json)
@@ -290,7 +291,7 @@ object Subcommands {
                 val listJson: JsonElement = listResponse.body()
                 (listJson as JsonArray).forEach {
                     val asObject = it as JsonObject
-                    val postId = (asObject["id"] as JsonPrimitive)?.content
+                    val postId = (asObject["id"] as JsonPrimitive).content
                     val postTime = (asObject["created_at"] as JsonPrimitive).content
                     System.out.format("%20s %s%n", postId, postTime)
                 }
