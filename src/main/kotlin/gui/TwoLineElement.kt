@@ -1,5 +1,6 @@
 package name.blackcap.socialbutterfly.gui
 
+import java.awt.Color
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.JLabel
@@ -11,7 +12,7 @@ class TwoLineElement(titleString: String, subTitleString: String) : JPanel() {
 
     init {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
-        border = BorderFactory.createEmptyBorder(BW, 0, BW, 0)
+        border = BorderFactory.createMatteBorder(0, 0, 1, 0, Color.GRAY)
         title.font = title.font.deriveFont(title.font.size2D * 1.5f)
         add(title)
         add(subTitle)

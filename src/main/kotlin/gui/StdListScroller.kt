@@ -1,6 +1,7 @@
 package name.blackcap.socialbutterfly.gui
 
 import java.awt.Component
+import java.awt.Dimension
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.*
@@ -10,6 +11,8 @@ import javax.swing.*
  * that this is actually a JScrollPane containing a JList.
  */
 class StdListScroller<E : Any> private constructor(val jList: JList<E>) : JScrollPane(jList) {
+
+    private var isNarrow: Boolean = false
 
     inner class HighlightingWrapper(private val wrapped: ListCellRenderer<E>) : ListCellRenderer<E> {
         override fun getListCellRendererComponent(
@@ -57,6 +60,10 @@ class StdListScroller<E : Any> private constructor(val jList: JList<E>) : JScrol
         return this
     }
 
+    init {
+        verticalScrollBarPolicy = VERTICAL_SCROLLBAR_ALWAYS
+    }
+
     fun withCellRenderer(renderer: ListCellRenderer<E>) : StdListScroller<E> {
         jList.cellRenderer = HighlightingWrapper(renderer)
         return this
@@ -67,7 +74,20 @@ class StdListScroller<E : Any> private constructor(val jList: JList<E>) : JScrol
         return this
     }
 
+    override fun getMaximumSize(): Dimension {
+        val stdMaxSize = super.getMaximumSize()
+        return if (isNarrow) { Dimension(preferredSize.width, stdMaxSize.height) } else { stdMaxSize }
+    }
+
+    fun makeNarrow() : StdListScroller<E> {
+        preferredSize = Dimension(NARROW_WIDTH, preferredSize.height)
+        isNarrow = true
+        return this
+    }
+
     companion object {
+        const val NARROW_WIDTH = 215  /* approx 1/3 of Application.PREFERRED_WIDTH */
+
         fun <T: Any>forListModel(model: DefaultListModel<T>) : StdListScroller<T> {
             return StdListScroller(JList(model))
         }

@@ -1,10 +1,14 @@
 package name.blackcap.socialbutterfly.gui
 
 import name.blackcap.socialbutterfly.lib.clear
+import java.awt.Dimension
 import javax.swing.*
 
 /* Prompt for an encryption/decryption key. We ask twice when prompting the
-   first time. A KeyChangeDialog is used for changing a key. */
+   first time. A KeyChangeDialog is used for changing a key. We do not do
+   in-dialog input validation here because doing so is troublesome in all
+   cases (rejecting incorrect decryption keys requires doing I/O and
+   attempting a decryption). */
 class KeyDialog(owner: JFrame, askTwice: Boolean = false) : JDialog(owner) {
     private val keyField = JPasswordField(MAX_CHARS).apply {
         border = BorderFactory.createEmptyBorder(0, BW2, BW2, BW2)

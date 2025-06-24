@@ -22,6 +22,9 @@ var state: State by setOnce()
 
 object Application {
     const val MYNAME = "Social Butterfly"
+
+    /* if the following are changed, widths in some of our widgets in gui
+       package may also need changing */
     const val PREFERRED_WIDTH = 640
     const val PREFERRED_HEIGHT = 480
 
@@ -36,7 +39,7 @@ object Application {
     var postsScroller: StdListScroller<MapConnector<Post, Instant>.ListModelEntry> by setOnce()
     var failuresConnector: SetConnector<Failure, Instant> by setOnce()
     var failuresScroller: StdListScroller<SetConnector<Failure, Instant>.ListModelEntry> by setOnce()
-    var decryptionKey: CharArray by setOnce()
+    lateinit var decryptionKey: CharArray
 
     fun initialize() {
         UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
@@ -65,7 +68,7 @@ object Application {
                 val fatal = "Fatal error reading config and/or state files."
                 LOGGER.log(Level.SEVERE, fatal, e)
                 errorDialog(fatal)
-                Application.exit(1)
+                exit(1)
             }
             break
         }
@@ -73,19 +76,22 @@ object Application {
         /* try and make sure key gets destroyed on exit */
         frame.addWindowListener(object : WindowAdapter() {
             override fun windowClosed(e: WindowEvent?) {
-                Application.exit()
+                exit()
             }
         })
 
         /* now that we have the saved data, use it to create the GUI objects */
         platformsConnector = MapConnector(config.platforms) { _, p -> getPlatformName(p::class).lowercase() }
         platformsScroller = StdListScroller.forListModel(platformsConnector.listModel)
+            .makeNarrow()
             .withCellRenderer(PlatformRenderer())
         channelsConnector = MapConnector(config.channels) { _, c -> c.credentials.username.lowercase() }
         channelsScroller = StdListScroller.forListModel(channelsConnector.listModel)
+            .makeNarrow()
             .withCellRenderer(ChannelRenderer(config.platforms))
         distsConnector = MapConnector(config.distributions) { _, d -> d.name.lowercase() }
         distsScroller = StdListScroller.forListModel(distsConnector.listModel)
+            .makeNarrow()
             .withCellRenderer(DistributionRenderer())
         postsConnector = MapConnector(state.posts) { _, p -> p.created }
         postsScroller = StdListScroller.forListModel(postsConnector.listModel)
