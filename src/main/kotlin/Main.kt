@@ -22,6 +22,7 @@ var state: State by setOnce()
 
 object Application {
     const val MYNAME = "Social Butterfly"
+    private const val NBSP = "\u00a0"
 
     /* if the following are changed, widths in some of our widgets in gui
        package may also need changing */
@@ -49,10 +50,17 @@ object Application {
         }
 
         /* start by making an empty frame, which we need in order to show a dialog */
+        val dummyLabel = JLabel(NBSP).apply {
+            horizontalAlignment = JLabel.CENTER
+            verticalAlignment = JLabel.CENTER
+        }
         frame = JFrame(MYNAME).apply {
             jMenuBar = MainMenuBar()
             preferredSize = Dimension(PREFERRED_WIDTH, PREFERRED_HEIGHT)
             defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
+            contentPane.add(dummyLabel)
+            validate()
+            pack()
             isVisible = true
         }
 
@@ -101,15 +109,18 @@ object Application {
             .withCellRenderer(FailureRenderer(state.posts))
 
         /* then display them */
-        frame.contentPane.add(
-            JTabbedPane().apply {
-                addTab("Platforms", tabbedPanePanelFor(platformsScroller))
-                addTab("Channels", tabbedPanePanelFor(channelsScroller))
-                addTab("Distributions", tabbedPanePanelFor(distsScroller))
-                addTab("Posts", tabbedPanePanelFor(postsScroller))
-                addTab("Failures", tabbedPanePanelFor(failuresScroller))
-            }
-        )
+        frame.contentPane.apply {
+            remove(dummyLabel)
+            add(
+                JTabbedPane().apply {
+                    addTab("Platforms", tabbedPanePanelFor(platformsScroller))
+                    addTab("Channels", tabbedPanePanelFor(channelsScroller))
+                    addTab("Distributions", tabbedPanePanelFor(distsScroller))
+                    addTab("Posts", tabbedPanePanelFor(postsScroller))
+                    addTab("Failures", tabbedPanePanelFor(failuresScroller))
+                }
+            )
+        }
 
         frame.apply {
             revalidate()
