@@ -6,13 +6,11 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.util.logging.Level
 import javax.swing.JMenuItem
 import javax.swing.KeyStroke
-import kotlin.system.exitProcess
 
 fun JMenuItem.makeShortcut(key: Int): Unit {
-    val SC_KEY_MASK = Toolkit.getDefaultToolkit().menuShortcutKeyMask
+    val SC_KEY_MASK = Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx
     setAccelerator(KeyStroke.getKeyStroke(key, SC_KEY_MASK))
 }
 

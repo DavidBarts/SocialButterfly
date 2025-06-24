@@ -49,11 +49,12 @@ object Application {
             setUpMacMenus()
         }
 
-        /* start by making an empty frame, which we need in order to show a dialog */
+        /* adding this forces the frame to be preferred size */
         val dummyLabel = JLabel(NBSP).apply {
             horizontalAlignment = JLabel.CENTER
             verticalAlignment = JLabel.CENTER
         }
+        /* start by making an empty frame, which we need in order to show a dialog */
         frame = JFrame(MYNAME).apply {
             jMenuBar = MainMenuBar()
             preferredSize = Dimension(PREFERRED_WIDTH, PREFERRED_HEIGHT)
@@ -153,6 +154,7 @@ object Application {
                     errorDialog("Please enter a key.")
                 }
             }
+            keyDialog.reset()
         }
         val ret = keyDialog.key.clone()
         keyDialog.dispose()

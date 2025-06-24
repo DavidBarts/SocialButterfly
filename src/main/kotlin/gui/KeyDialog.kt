@@ -1,7 +1,6 @@
 package name.blackcap.socialbutterfly.gui
 
 import name.blackcap.socialbutterfly.lib.clear
-import java.awt.Dimension
 import javax.swing.*
 
 /* Prompt for an encryption/decryption key. We ask twice when prompting the
@@ -53,15 +52,17 @@ class KeyDialog(owner: JFrame, askTwice: Boolean = false) : JDialog(owner) {
             }
             add(otherKeyField)
         }
+        val okButton = JButton("OK").apply {
+            alignmentX = CENTER_ALIGNMENT
+            addActionListener { dismiss() }
+        }
+        rootPane.defaultButton = okButton
         add(JPanel(). apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = BorderFactory.createEmptyBorder(0, BW2, BW2, BW2)
             alignmentX = LEFT_ALIGNMENT
             add(Box.createHorizontalGlue())
-            add(JButton("OK").apply {
-                alignmentX = CENTER_ALIGNMENT
-                addActionListener { dismiss() }
-            })
+            add(okButton)
             add(Box.createHorizontalGlue())
         })
         pack()
@@ -85,7 +86,7 @@ class KeyDialog(owner: JFrame, askTwice: Boolean = false) : JDialog(owner) {
 
     companion object {
         const val MAX_CHARS = 50
-        const val BW = 9
-        const val BW2 = BW * 2
+        private const val BW = 9
+        private const val BW2 = BW * 2
     }
 }
