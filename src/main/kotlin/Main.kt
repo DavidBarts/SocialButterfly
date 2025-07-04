@@ -9,12 +9,10 @@ import java.awt.Dimension
 import java.awt.desktop.QuitStrategy
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
-import java.awt.font.TextAttribute
 import java.security.GeneralSecurityException
 import java.time.Instant
 import java.util.logging.Level
 import javax.swing.*
-import javax.swing.plaf.FontUIResource
 import kotlin.system.exitProcess
 
 var config: Config by setOnce()
@@ -45,7 +43,6 @@ object Application {
     fun initialize() {
         UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
         if (OS.type == OS.MAC) {
-            setUpMacFonts()
             setUpMacMenus()
         }
 
@@ -171,23 +168,7 @@ object Application {
         exitProcess(status)
     }
 
-/* Note that this is incomplete; there is no good, simple way to do this
-   for all fonts in all UI element types. We just do it for labels (and
-   anything else needed for this application) and don't worry about the
-   rest. */
-private fun setUpMacFonts() {
-    // https://stackoverflow.com/questions/79506573/is-there-a-way-to-use-the-macos-system-font-with-fallback-for-missing-glyphs-su
-    val STD_MAC_FONT = mapOf<TextAttribute, Any>(TextAttribute.FAMILY to ".AppleSystemUIFont")
-    listOf<String>("Button.font", "Label.font", "TabbedPane.font").forEach {
-        val oldFont = UIManager.getDefaults().getFont(it)
-        if (oldFont != null) {
-            val newFont = FontUIResource(oldFont.deriveFont(STD_MAC_FONT))
-            UIManager.put(it, newFont)
-        }
-    }
-}
-
-private fun setUpMacMenus() {
+    private fun setUpMacMenus() {
     Desktop.getDesktop().run {
         setAboutHandler { showAboutDialog() }
         /* setPreferencesHandler(NOT FINISHED) */
