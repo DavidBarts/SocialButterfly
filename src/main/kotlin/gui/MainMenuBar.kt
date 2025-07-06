@@ -1,9 +1,15 @@
 package name.blackcap.socialbutterfly.gui
 
 import name.blackcap.socialbutterfly.Application
-import name.blackcap.socialbutterfly.lib.OS
-import name.blackcap.socialbutterfly.lib.makeShortcut
+import name.blackcap.socialbutterfly.config
+import name.blackcap.socialbutterfly.dirty
+import name.blackcap.socialbutterfly.lib.*
+import name.blackcap.socialbutterfly.state
+import java.awt.desktop.QuitResponse
 import java.awt.event.KeyEvent
+import java.io.IOException
+import java.security.GeneralSecurityException
+import java.util.logging.Level
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
@@ -14,15 +20,19 @@ class MainMenuBar: JMenuBar() {
         add(JMenu("File").apply {
             if (OS.type != OS.MAC) {
                 add(JMenuItem("Quit").apply {
-                    addActionListener { Application.exit() }
+                    addActionListener { doQuit() }
                     makeShortcut(KeyEvent.VK_Q)
                 })
             }
+            add(JMenuItem("Export Configuration…").apply {
+                /* NOT FINISHED */
+            })
             add(JMenuItem("Import Configuration…").apply {
                 /* NOT FINISHED */
             })
-            add(JMenuItem("Export Configuration…").apply {
-                /* NOT FINISHED */
+            add(JMenuItem("Save Configuration").apply {
+                addActionListener { doSave() }
+                makeShortcut(KeyEvent.VK_S)
             })
         })
         if (OS.type != OS.MAC) {
@@ -42,4 +52,46 @@ fun showAboutDialog() {
                 + "© MMXXV, David W. Barts",
         "About Social Butterfly",
         JOptionPane.PLAIN_MESSAGE)
+}
+
+private fun doSave() : Boolean {
+    var failure: Exception? = null
+    lateinit var message: String
+    try {
+        saveConfig(config, Application.decryptionKey)
+        saveState(state)
+    } catch (e: IOException) {
+        failure = e
+        message = e.message ?: "I/O error"
+    } catch (e: GeneralSecurityException) {
+        failure = e
+        message = e.message ?: "crypto error"
+    }
+    if (failure == null) {
+        dirty = false
+    } else {
+        LOGGER.log(Level.SEVERE, "Unable to save config and/or state.", failure)
+        JOptionPane.showMessageDialog(Application.frame, message, "Error", JOptionPane.ERROR_MESSAGE)
+    }
+    return failure == null
+}
+
+fun doQuit(response: QuitResponse? = null) {
+    if (dirty) {
+        val answer = JOptionPane.showConfirmDialog(
+            Application.frame,
+            "Unsaved changes to the configuration exist.\nSave them?",
+            "Unsaved Configuration Changes",
+            JOptionPane.YES_NO_CANCEL_OPTION)
+        val cancel = when (answer) {
+            JOptionPane.YES_OPTION -> !doSave()
+            JOptionPane.CANCEL_OPTION, JOptionPane.CLOSED_OPTION -> true
+            else -> false
+        }
+        if (cancel) {
+            response?.cancelQuit()
+            return
+        }
+    }
+    Application.exit()
 }

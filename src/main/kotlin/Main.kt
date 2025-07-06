@@ -17,6 +17,7 @@ import kotlin.system.exitProcess
 
 var config: Config by setOnce()
 var state: State by setOnce()
+var dirty = false
 
 object Application {
     const val MYNAME = "Social Butterfly"
@@ -171,8 +172,8 @@ object Application {
     private fun setUpMacMenus() {
     Desktop.getDesktop().run {
         setAboutHandler { showAboutDialog() }
+        setQuitHandler { _, response -> doQuit(response) }
         /* setPreferencesHandler(NOT FINISHED) */
-        setQuitStrategy(QuitStrategy.CLOSE_ALL_WINDOWS)
     }
 }
 
@@ -207,4 +208,3 @@ private fun setUpErrors() {
     System.setOut(ps)
     System.setErr(ps)
 }
-
