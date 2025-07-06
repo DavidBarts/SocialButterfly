@@ -6,7 +6,6 @@ import name.blackcap.socialbutterfly.jschema.*
 import name.blackcap.socialbutterfly.lib.*
 import java.awt.Desktop
 import java.awt.Dimension
-import java.awt.desktop.QuitStrategy
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.security.GeneralSecurityException
@@ -14,10 +13,6 @@ import java.time.Instant
 import java.util.logging.Level
 import javax.swing.*
 import kotlin.system.exitProcess
-
-var config: Config by setOnce()
-var state: State by setOnce()
-var dirty = false
 
 object Application {
     const val MYNAME = "Social Butterfly"
@@ -67,7 +62,7 @@ object Application {
         while (true) {
             decryptionKey = getKey()
             try {
-                loadConfigState(decryptionKey).run { config = first; state = second }
+                ConfigState.load(decryptionKey)
             } catch (e: GeneralSecurityException) {
                 errorDialog("Unable to decrypt config. Please reenter key.")
                 continue
@@ -88,24 +83,24 @@ object Application {
         })
 
         /* now that we have the saved data, use it to create the GUI objects */
-        platformsConnector = MapConnector(config.platforms) { _, p -> getPlatformName(p::class).lowercase() }
+        platformsConnector = MapConnector(ConfigState.config.platforms) { _, p -> getPlatformName(p::class).lowercase() }
         platformsScroller = StdListScroller.forListModel(platformsConnector.listModel)
             .makeNarrow()
             .withCellRenderer(PlatformRenderer())
-        channelsConnector = MapConnector(config.channels) { _, c -> c.credentials.username.lowercase() }
+        channelsConnector = MapConnector(ConfigState.config.channels) { _, c -> c.credentials.username.lowercase() }
         channelsScroller = StdListScroller.forListModel(channelsConnector.listModel)
             .makeNarrow()
-            .withCellRenderer(ChannelRenderer(config.platforms))
-        distsConnector = MapConnector(config.distributions) { _, d -> d.name.lowercase() }
+            .withCellRenderer(ChannelRenderer(ConfigState.config.platforms))
+        distsConnector = MapConnector(ConfigState.config.distributions) { _, d -> d.name.lowercase() }
         distsScroller = StdListScroller.forListModel(distsConnector.listModel)
             .makeNarrow()
             .withCellRenderer(DistributionRenderer())
-        postsConnector = MapConnector(state.posts) { _, p -> p.created }
+        postsConnector = MapConnector(ConfigState.state.posts) { _, p -> p.created }
         postsScroller = StdListScroller.forListModel(postsConnector.listModel)
             .withCellRenderer(PostRenderer())
-        failuresConnector = SetConnector(state.failures) { it.created }
+        failuresConnector = SetConnector(ConfigState.state.failures) { it.created }
         failuresScroller = StdListScroller.forListModel(failuresConnector.listModel)
-            .withCellRenderer(FailureRenderer(state.posts))
+            .withCellRenderer(FailureRenderer(ConfigState.state.posts))
 
         /* then display them */
         frame.contentPane.apply {

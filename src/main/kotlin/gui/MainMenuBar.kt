@@ -1,10 +1,10 @@
 package name.blackcap.socialbutterfly.gui
 
 import name.blackcap.socialbutterfly.Application
-import name.blackcap.socialbutterfly.config
-import name.blackcap.socialbutterfly.dirty
-import name.blackcap.socialbutterfly.lib.*
-import name.blackcap.socialbutterfly.state
+import name.blackcap.socialbutterfly.lib.ConfigState
+import name.blackcap.socialbutterfly.lib.LOGGER
+import name.blackcap.socialbutterfly.lib.OS
+import name.blackcap.socialbutterfly.lib.makeShortcut
 import java.awt.desktop.QuitResponse
 import java.awt.event.KeyEvent
 import java.io.IOException
@@ -58,8 +58,7 @@ private fun doSave() : Boolean {
     var failure: Exception? = null
     lateinit var message: String
     try {
-        saveConfig(config, Application.decryptionKey)
-        saveState(state)
+        ConfigState.save(Application.decryptionKey)
     } catch (e: IOException) {
         failure = e
         message = e.message ?: "I/O error"
@@ -67,9 +66,7 @@ private fun doSave() : Boolean {
         failure = e
         message = e.message ?: "crypto error"
     }
-    if (failure == null) {
-        dirty = false
-    } else {
+    if (failure != null)  {
         LOGGER.log(Level.SEVERE, "Unable to save config and/or state.", failure)
         JOptionPane.showMessageDialog(Application.frame, message, "Error", JOptionPane.ERROR_MESSAGE)
     }
@@ -77,7 +74,7 @@ private fun doSave() : Boolean {
 }
 
 fun doQuit(response: QuitResponse? = null) {
-    if (dirty) {
+    if (ConfigState.dirty) {
         val answer = JOptionPane.showConfirmDialog(
             Application.frame,
             "Unsaved changes to the configuration exist.\nSave them?",
