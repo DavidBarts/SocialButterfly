@@ -75,13 +75,6 @@ object Application {
             break
         }
 
-        /* try and make sure key gets destroyed on exit */
-        frame.addWindowListener(object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent?) {
-                exit()
-            }
-        })
-
         /* now that we have the saved data, use it to create the GUI objects */
         platformsConnector = MapConnector(ConfigState.config.platforms) { _, p -> getPlatformName(p::class).lowercase() }
         platformsScroller = StdListScroller.forListModel(platformsConnector.listModel)
