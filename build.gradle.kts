@@ -22,6 +22,7 @@ dependencies {
     implementation("io.ktor:ktor-client-auth:2.3.13")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.9.0")
     implementation("org.slf4j:slf4j-nop:2.0.16")
     implementation("commons-cli:commons-cli:1.9.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.9.25")

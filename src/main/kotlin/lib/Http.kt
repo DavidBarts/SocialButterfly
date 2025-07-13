@@ -1,6 +1,7 @@
 package name.blackcap.socialbutterfly.lib
 
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.engine.java.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.auth.*
@@ -11,6 +12,9 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonElement
+import name.blackcap.socialbutterfly.Application
 
 fun makeHttpClient(json: Boolean = false, bearerToken: String? = null,
                    refreshCallback: (RefreshTokensParams.() -> BearerTokens)? = null) =
@@ -34,7 +38,7 @@ fun makeHttpClient(json: Boolean = false, bearerToken: String? = null,
             }
         }
         install(DefaultRequest) {
-            header(HttpHeaders.UserAgent, "SocialButterfly")
+            header(HttpHeaders.UserAgent, Application.CLIENTNAME)
         }
         install(Logging) {
             logger = Logger.EMPTY
@@ -66,3 +70,11 @@ suspend fun doAuthRequest(shouldRefreshBefore: suspend () -> Boolean = { false }
 }
 
 class TokenRefreshException(message: String): Exception(message)
+
+suspend fun HttpResponse.bodyAsJson(): JsonElement? = try {
+    body()
+} catch (e: SerializationException) {
+    null
+} catch (e: IllegalArgumentException) {
+    null
+}

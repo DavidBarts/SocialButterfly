@@ -62,6 +62,8 @@ class StdListScroller<E : Any> private constructor(val jList: JList<E>) : JScrol
 
     init {
         verticalScrollBarPolicy = VERTICAL_SCROLLBAR_ALWAYS
+        /* the following is minorly annoying, but majorly simplifies our code */
+        jList.selectionMode = ListSelectionModel.SINGLE_SELECTION
     }
 
     fun withCellRenderer(renderer: ListCellRenderer<E>) : StdListScroller<E> {

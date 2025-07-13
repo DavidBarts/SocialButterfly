@@ -74,7 +74,7 @@ data class MastodonPlatform(
 @Serializable
 data class TwitterPlatform(
     override val host: String = "api.x.com",
-    val clientId: String
+    var clientId: String
 ): Platform() {
     override val isCentralized: Boolean = true
     override val maxChars = 280

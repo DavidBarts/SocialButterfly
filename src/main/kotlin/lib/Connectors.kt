@@ -5,10 +5,14 @@ package name.blackcap.socialbutterfly.lib
 
 import javax.swing.DefaultListModel
 
+interface IndexRemovable {
+    fun remove(index: Int): Unit
+}
+
 class MapConnector<T: Any, U: Comparable<U>>(
     val map: MutableMap<String, T>,
     val sortKeyGenerator: (String, T) -> U
-) {
+): IndexRemovable {
     val listModel = DefaultListModel<MapConnector<T, U>.ListModelEntry>().apply {
         val entries = map.entries
             .map { ListModelEntry(it.key, sortKeyGenerator(it.key, it.value), it.value) }
@@ -33,7 +37,7 @@ class MapConnector<T: Any, U: Comparable<U>>(
         listModel.insertElementAt(ListModelEntry(accessKey, sortKey, value), index)
     }
 
-    fun remove(index: Int) {
+    override fun remove(index: Int) {
         val accessKey = listModel.remove(index).accessKey
         map.remove(accessKey)
     }
@@ -42,7 +46,7 @@ class MapConnector<T: Any, U: Comparable<U>>(
 class SetConnector<T: Any, U:Comparable<U>>(
     val set: MutableSet<T>,
     val sortKeyGenerator: (T) -> U
-){
+): IndexRemovable {
     val listModel = DefaultListModel<SetConnector<T, U>.ListModelEntry>().apply {
         val entries = set
             .map { ListModelEntry(sortKeyGenerator(it), it) }
@@ -66,7 +70,7 @@ class SetConnector<T: Any, U:Comparable<U>>(
         listModel.insertElementAt(ListModelEntry(sortKey, value), index)
     }
 
-    fun remove(index: Int) {
+    override fun remove(index: Int) {
         val item = listModel.remove(index).value
         set.remove(item)
     }

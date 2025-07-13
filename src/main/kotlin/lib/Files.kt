@@ -10,7 +10,8 @@ import java.util.logging.SimpleFormatter
 private fun joinPath(base: String, vararg rest: String) = rest.fold(File(base), ::File)
 private fun File.makeIfNeeded() = if (exists()) { true } else { mkdirs() }
 
-private val SHORTNAME = Application.MYNAME.replace(" ", "").lowercase()
+val CLIENTNAME = Application.MYNAME.replace(" ", "")
+private val SHORTNAME = CLIENTNAME.lowercase()
 private val LONGNAME = "name.blackcap.$SHORTNAME"
 private val HOME = System.getenv("HOME")
 private val PF_DIR = when (OS.type) {

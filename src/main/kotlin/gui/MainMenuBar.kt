@@ -64,7 +64,7 @@ private fun doSave() : Boolean {
         message = e.message ?: "I/O error"
     } catch (e: GeneralSecurityException) {
         failure = e
-        message = e.message ?: "crypto error"
+        message = e.message ?: "security error"
     }
     if (failure != null)  {
         LOGGER.log(Level.SEVERE, "Unable to save config and/or state.", failure)

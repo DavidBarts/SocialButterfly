@@ -1,13 +1,12 @@
 package name.blackcap.socialbutterfly
 
 import io.ktor.utils.io.errors.*
+import name.blackcap.socialbutterfly.driver.getPlatformName
 import name.blackcap.socialbutterfly.gui.*
 import name.blackcap.socialbutterfly.jschema.*
 import name.blackcap.socialbutterfly.lib.*
 import java.awt.Desktop
 import java.awt.Dimension
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
 import java.security.GeneralSecurityException
 import java.time.Instant
 import java.util.logging.Level
@@ -16,6 +15,8 @@ import kotlin.system.exitProcess
 
 object Application {
     const val MYNAME = "Social Butterfly"
+    val CLIENTNAME = MYNAME.replace(" ", "")
+
     private const val NBSP = "\u00a0"
 
     /* if the following are changed, widths in some of our widgets in gui
@@ -25,7 +26,7 @@ object Application {
 
     var frame: JFrame by setOnce()
     var platformsConnector: MapConnector<Platform, String> by setOnce()
-    var platformsScroller: StdListScroller<MapConnector<Platform, String>.ListModelEntry> by setOnce()
+    var platformsPanel: PlatformsTabbedPanePanel by setOnce()
     var channelsConnector: MapConnector<Channel, String> by setOnce()
     var channelsScroller: StdListScroller<MapConnector<Channel, String>.ListModelEntry> by setOnce()
     var distsConnector: MapConnector<Distribution, String> by setOnce()
@@ -76,10 +77,8 @@ object Application {
         }
 
         /* now that we have the saved data, use it to create the GUI objects */
-        platformsConnector = MapConnector(ConfigState.config.platforms) { _, p -> getPlatformName(p::class).lowercase() }
-        platformsScroller = StdListScroller.forListModel(platformsConnector.listModel)
-            .makeNarrow()
-            .withCellRenderer(PlatformRenderer())
+        platformsConnector = MapConnector(ConfigState.config.platforms) { _, p -> getPlatformName(p).lowercase() }
+        platformsPanel = PlatformsTabbedPanePanel(ConfigState.config.platforms)
         channelsConnector = MapConnector(ConfigState.config.channels) { _, c -> c.credentials.username.lowercase() }
         channelsScroller = StdListScroller.forListModel(channelsConnector.listModel)
             .makeNarrow()
@@ -100,7 +99,7 @@ object Application {
             remove(dummyLabel)
             add(
                 JTabbedPane().apply {
-                    addTab("Platforms", tabbedPanePanelFor(platformsScroller))
+                    addTab("Platforms", platformsPanel)
                     addTab("Channels", tabbedPanePanelFor(channelsScroller))
                     addTab("Distributions", tabbedPanePanelFor(distsScroller))
                     addTab("Posts", tabbedPanePanelFor(postsScroller))

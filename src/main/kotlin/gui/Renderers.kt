@@ -1,5 +1,6 @@
 package name.blackcap.socialbutterfly.gui
 
+import name.blackcap.socialbutterfly.driver.getPlatformName
 import name.blackcap.socialbutterfly.jschema.*
 import name.blackcap.socialbutterfly.lib.MapConnector
 import name.blackcap.socialbutterfly.lib.SetConnector
@@ -8,19 +9,6 @@ import java.awt.Component
 import java.time.Instant
 import javax.swing.JList
 import javax.swing.ListCellRenderer
-import kotlin.reflect.KClass
-
-fun getPlatformName(klass: KClass<out Platform>): String {
-    val SUFFIX = "Platform"
-    var name = klass.simpleName!!
-    if (name.endsWith(SUFFIX)) {
-        name = name.substring(0, name.length - SUFFIX.length)
-    }
-    if (name == "Twitter") {
-        name = "X (Twitter)"
-    }
-    return name
-}
 
 private fun annotatedTime(time: Instant, flag: Boolean, annotation: String): String =
     if (flag) {
@@ -38,9 +26,9 @@ class PlatformRenderer : ListCellRenderer<MapConnector<Platform, String>.ListMod
         cellHasFocus: Boolean
     ): Component =
         if (value!!.value.isCentralized) {
-            TwoLineElement(getPlatformName(value.value::class), "")
+            TwoLineElement(getPlatformName(value.value), "")
         } else {
-            TwoLineElement(value.value.host, getPlatformName(value.value::class))
+            TwoLineElement(value.value.host, getPlatformName(value.value))
         }
 }
 
@@ -53,7 +41,7 @@ class ChannelRenderer(private val platforms: MutableMap<String, Platform>) : Lis
         cellHasFocus: Boolean
     ): Component {
         val platform = platforms[value!!.value.platform]!!
-        val platformName = getPlatformName(platform::class)
+        val platformName = getPlatformName(platform)
         return if (platform.isCentralized) {
             TwoLineElement(value.value.credentials.username, platformName)
         } else {
