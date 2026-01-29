@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>aspnet-AuthTest-71bc9e88-cd36-4cc2-9049-480fbca8dd12</UserSecretsId>
+    <UserSecretsId>aspnet-SocialButterfly-71bc9e88-cd36-4cc2-9049-480fbca8dd12</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
