@@ -23,6 +23,14 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# MacOS crud
+.DS_Store
+._*
+
+# Databases
+auth.db
+data.db
+
 # .NET Core
 project.lock.json
 project.fragment.lock.json
