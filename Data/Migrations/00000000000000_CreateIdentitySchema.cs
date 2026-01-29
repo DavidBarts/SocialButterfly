@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
-namespace AuthTest.Data.Migrations
+namespace SocialButterfly.Data.Migrations
 {
     public partial class CreateIdentitySchema : Migration
     {

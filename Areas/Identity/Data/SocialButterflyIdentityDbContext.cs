@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace AuthTest.Areas.Identity.Data;
+namespace SocialButterfly.Areas.Identity.Data;
 
-public class AuthTestIdentityDbContext : IdentityDbContext<IdentityUser>
+public class SocialButterflyIdentityDbContext : IdentityDbContext<IdentityUser>
 {
-    public AuthTestIdentityDbContext(DbContextOptions<AuthTestIdentityDbContext> options)
+    public SocialButterflyIdentityDbContext(DbContextOptions<SocialButterflyIdentityDbContext> options)
         : base(options)
     {
     }

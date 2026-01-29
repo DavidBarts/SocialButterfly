@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using AuthTest.Data;
-using AuthTest.Areas.Identity.Data;
+using SocialButterfly.Data;
+using SocialButterfly.Areas.Identity.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
