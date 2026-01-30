@@ -6,9 +6,12 @@ using SocialButterfly.Areas.Identity.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var authConnectionString = builder.Configuration.GetConnectionString("AuthConnection") ?? throw new InvalidOperationException("Connection string 'AuthConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(connectionString));
+    options.UseSqlite(authConnectionString));
+var sbConnectionString = builder.Configuration.GetConnectionString("SbConnection") ?? throw new InvalidOperationException("Connection string 'SbConnection' not found.");
+builder.Services.AddDbContext<SbContext>(options =>
+    options.UseSqlite(sbConnectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
