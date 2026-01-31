@@ -29,7 +29,7 @@ bld/
 
 # Databases
 auth.db
-data.db
+sb.db
 
 # .NET Core
 project.lock.json

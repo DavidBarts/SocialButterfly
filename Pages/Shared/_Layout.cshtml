@@ -6,11 +6,21 @@
     <title>@ViewData["Title"] - SocialButterfly</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/SocialButterfly.styles.css" />
 </head>
 <body>
     <header>
-        <p>This is a dummy header.</p>
+        <a style="color: inherit; text-decoration: inherit;" href="/">Social Butterfly</a><br/>
     </header>
+    <nav>
+        <ul>
+            <li><a href="/Privacy">Privacy</a></li>
+            <li><a href="/About">About</a></li>
+            <div style="float:right">
+                <partial name="_LoginPartial" />
+            </div>
+        </ul>
+    </nav>
     <div>
         <main role="main">
             @RenderBody()
@@ -18,7 +28,7 @@
     </div>
 
     <footer>
-        <p>This is a dummy footer.</p>
+        <p>Copyright © 2026, David W. Barts</p>
     </footer>
 
     <script src="~/js/site.js" asp-append-version="true"></script>
