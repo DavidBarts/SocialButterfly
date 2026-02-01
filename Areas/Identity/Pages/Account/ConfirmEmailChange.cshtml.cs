@@ -2,14 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
-using System;
 using System.Text;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
+using SocialButterfly.Data;
 
 namespace SocialButterfly.Areas.Identity.Pages.Account
 {
@@ -17,11 +16,13 @@ namespace SocialButterfly.Areas.Identity.Pages.Account
     {
         private readonly UserManager<IdentityUser> _userManager;
         private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly SbContext _sbContext;
 
-        public ConfirmEmailChangeModel(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
+        public ConfirmEmailChangeModel(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, SbContext sbContext)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _sbContext = sbContext;
         }
 
         /// <summary>
@@ -44,6 +45,7 @@ namespace SocialButterfly.Areas.Identity.Pages.Account
                 return NotFound($"Unable to load user with ID '{userId}'.");
             }
 
+            var oldEmail = user.Email;
             code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
             var result = await _userManager.ChangeEmailAsync(user, email, code);
             if (!result.Succeeded)
@@ -58,6 +60,16 @@ namespace SocialButterfly.Areas.Identity.Pages.Account
             if (!setUserNameResult.Succeeded)
             {
                 StatusMessage = "Error changing user name.";
+                return Page();
+            }
+
+            /* now set the email (username) in our object */
+            var updated = await _sbContext.Users
+                .Where(u => u.Name == oldEmail)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.Name, email));
+            if (updated != 1)
+            {
+                StatusMessage = $"Expected to find 1 user but found {updated}!";
                 return Page();
             }
 
