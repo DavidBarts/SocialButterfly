@@ -9,18 +9,20 @@
 }
 
 <h1>@ViewData["Title"]</h1>
-<h2>Enter your email.</h2>
+<h2>Enter your email</h2>
 <hr />
 <div>
-    <div>
+    <div class="std-form">
         <form method="post">
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>
-            <div>
-                <input asp-for="Input.Email" aria-required="true" placeholder="name@example.com" />
-                <label asp-for="Input.Email"></label>
+            <div class="std-form-control">
+                <label asp-for="Input.Email" class="std-label top"></label><br/>
+                <input asp-for="Input.Email" class="std-text-input" aria-required="true" placeholder="name@example.com" />
                 <span asp-validation-for="Input.Email" class="text-danger"></span>
             </div>
-            <button type="submit">Resend</button>
+            <div class="std-form-control">
+                <button class="std-button" type="submit">Resend</button>
+            </div>
         </form>
     </div>
 </div>

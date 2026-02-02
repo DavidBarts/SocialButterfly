@@ -15,30 +15,30 @@
     general user accounts are not yet available to the public.
 </p>
 <div>
-    <div>
+    <div class="std-form">
         <section>
             <form id="account" method="post">
-                <h2>Use a local account to log in.</h2>
+                <h2>Use a local account to log in</h2>
                 <hr />
                 <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-                <div>
-                    <input asp-for="Input.Email" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                    <label asp-for="Input.Email">Email</label>
+                <div class="std-form-control">
+                    <label asp-for="Input.Email" class="std-label top">Email</label><br/>
+                    <input asp-for="Input.Email" class="std-text-input" autocomplete="username" aria-required="true" placeholder="name@example.com" />
                     <span asp-validation-for="Input.Email" class="text-danger"></span>
                 </div>
-                <div>
-                    <input asp-for="Input.Password" autocomplete="current-password" aria-required="true" placeholder="password" />
-                    <label asp-for="Input.Password">Password</label>
+                <div class="std-form-control">
+                    <label asp-for="Input.Password" class="std-label top">Password</label><br/>
+                    <input asp-for="Input.Password" class="std-text-input" autocomplete="current-password" aria-required="true" placeholder="password" />
                     <span asp-validation-for="Input.Password" class="text-danger"></span>
                 </div>
-                <div>
-                    <label asp-for="Input.RememberMe">
+                <div class="std-form-control">
+                    <label asp-for="Input.RememberMe" class="std-label">
                         <input asp-for="Input.RememberMe" />
                         @Html.DisplayNameFor(m => m.Input.RememberMe)
                     </label>
                 </div>
-                <div>
-                    <button id="login-submit" type="submit">Log in</button>
+                <div class="std-form-control">
+                    <button class="std-button" id="login-submit" type="submit">Log in</button>
                 </div>
                 <div>
                     <p>

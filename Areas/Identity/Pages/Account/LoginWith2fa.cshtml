@@ -12,23 +12,23 @@
 <hr />
 <p>Your login is protected with an authenticator app. Enter your authenticator code below.</p>
 <div>
-    <div>
+    <div class="std-form">
         <form method="post" asp-route-returnUrl="@Model.ReturnUrl">
             <input asp-for="RememberMe" type="hidden" />
             <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-            <div>
-                <input asp-for="Input.TwoFactorCode" autocomplete="off" />
-                <label asp-for="Input.TwoFactorCode"></label>
+            <div class="std-form-control">
+                <label asp-for="Input.TwoFactorCode" class="std-label top"></label>
+                <input asp-for="Input.TwoFactorCode" class="std-text-input" autocomplete="off" />
                 <span asp-validation-for="Input.TwoFactorCode" class="text-danger"></span>
             </div>
-            <div>
-                <label asp-for="Input.RememberMachine">
+            <div class="std-form-control">
+                <label class="std-label" asp-for="Input.RememberMachine">
                     <input asp-for="Input.RememberMachine" />
                     @Html.DisplayNameFor(m => m.Input.RememberMachine)
                 </label>
             </div>
-            <div>
-                <button type="submit">Log in</button>
+            <div class="std-form-control">
+                <button class="std-button" type="submit">Log in</button>
             </div>
         </form>
     </div>

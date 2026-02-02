@@ -12,19 +12,21 @@
 <h3>@ViewData["Title"]</h3>
 <partial name="_StatusMessage" for="StatusMessage" />
 <div>
-    <div>
+    <div class="std-form">
         <form id="profile-form" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-            <div>
-                <input asp-for="Username" placeholder="Please choose your username." disabled />
-                <label asp-for="Username"></label>
+            <div class="std-form-control">
+                <label asp-for="Username" class="std-label top"></label><br/>
+                <input asp-for="Username" class="std-text-input" placeholder="username" disabled />
             </div>
-            <div>
-                <input asp-for="Input.PhoneNumber" placeholder="Please enter your phone number."/>
-                <label asp-for="Input.PhoneNumber"></label>
+            <div class="std-form-control">
+                <label asp-for="Input.PhoneNumber" class="std-label top"></label><br/>
+                <input asp-for="Input.PhoneNumber" class="std-text-input" placeholder="phone number"/>
                 <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
             </div>
-            <button id="update-profile-button" type="submit">Save</button>
+            <div class="std-form-control">
+                <button class="std-button" id="update-profile-button" type="submit">Save</button>
+            </div>
         </form>
     </div>
 </div>

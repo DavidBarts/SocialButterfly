@@ -36,14 +36,16 @@
                 with a unique code. Enter the code in the confirmation box below.
             </p>
             <div>
-                <div>
+                <div class="std-form">
                     <form id="send-code" method="post">
-                        <div>
-                            <input asp-for="Input.Code" autocomplete="off" placeholder="Please enter the code."/>
-                            <label asp-for="Input.Code">Verification Code</label>
+                        <div class="std-form-control">
+                            <label asp-for="Input.Code" class="std-label top">Verification Code</label><br/>
+                            <input asp-for="Input.Code" class="std-text-input" autocomplete="off" placeholder="code"/>
                             <span asp-validation-for="Input.Code" class="text-danger"></span>
                         </div>
-                        <button type="submit">Verify</button>
+                        <div class="std-form-control">
+                            <button class="std-button" type="submit">Verify</button>
+                        </div>
                         <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
                     </form>
                 </div>

@@ -15,15 +15,17 @@
     an authenticator app code at log in or disable 2FA and log in again.
 </p>
 <div>
-    <div>
+    <div class="std-form">
         <form method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-            <div>
-                <input asp-for="Input.RecoveryCode" autocomplete="off" placeholder="RecoveryCode" />
-                <label asp-for="Input.RecoveryCode"></label>
+            <div class="std-form-control">
+                <label asp-for="Input.RecoveryCode" class="std-label top"></label><br/>
+                <input asp-for="Input.RecoveryCode" class="std-text-input" autocomplete="off" placeholder="RecoveryCode" />
                 <span asp-validation-for="Input.RecoveryCode" class="text-danger"></span>
             </div>
-            <button type="submit">Log in</button>
+            <div class="std-form-control">
+                <button class="std-button" type="submit">Log in</button>
+            </div>
         </form>
     </div>
 </div>
