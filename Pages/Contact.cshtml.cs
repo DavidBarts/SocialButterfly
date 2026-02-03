@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace SocialButterfly.Pages;
 
-public class ContactModel : PageModel
+public class AboutModel : PageModel
 {
     public void OnGet()
     {

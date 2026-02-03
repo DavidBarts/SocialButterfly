@@ -1,0 +1,42 @@
+﻿@page
+@model ContactModel
+@{
+    ViewData["Title"] = "Contact";
+}
+<h1>@ViewData["Title"]</h1>
+
+<p>
+    If you wish to contact the provider of this service (for example, to
+    request an account), you may do so by sending an email to
+    <a href="znvygb:a5wea@zr.pbz" id="email">a5wea@zr.pbz</a>.
+</p>
+<p>
+    Note that this e-mail address was encoded to protect it from address
+    harvesting bots used by spammers. It should have been decoded for you
+    automatically. If you see gibberish, it probably means you have
+    JavaScript disabled in your browser. Enable it, and you should see the
+    decoded e-mail address.
+</p>
+
+
+@section Scripts {
+    <script>
+      function mapit(input, output, str) {
+        var index     = x => input.indexOf(x);
+        var translate = x => index(x) > -1 ? output[index(x)] : x;
+        return str.split('').map(translate).join('');
+      }
+      function rot13(str) {
+        return mapit(
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+          'NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm',
+          str);
+      }
+      function descramble() {
+        var email = document.getElementById("email");
+        email.setAttribute("href", rot13(email.getAttribute("href")));
+        email.innerHTML = rot13(email.innerHTML);
+      }
+      window.onload = descramble;
+    </script>
+}
