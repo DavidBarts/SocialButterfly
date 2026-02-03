@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using SocialButterfly.Data;
 using SocialButterfly.Lib;
 
-var builder = WebApplication.CreateBuilder(args);
+(var toolArgs, var appArgs) = SocialButterfly.Tool.Runner.SplitArgs(args);
+
+var builder = WebApplication.CreateBuilder(appArgs);
 
 // Add services to the container.
 var authConnectionString = builder.Configuration.GetConnectionString("AuthConnection") ?? throw new InvalidOperationException("Connection string 'AuthConnection' not found.");
@@ -43,6 +45,10 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 
+// if we need to run a command-line app instead, this will do that (& exit)
+SocialButterfly.Tool.Runner.Run(app, toolArgs);
+
+// If we are still running here, we need to run the webapp (see above).
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
