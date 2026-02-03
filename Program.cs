@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SocialButterfly.Data;
+using SocialButterfly.Lib;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,11 +24,11 @@ builder.Services.AddRazorPages(options =>
 builder.Services.Configure<IdentityOptions>(options =>
 {
     // Default Password settings.
-    options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireUppercase = true;
-    options.Password.RequiredLength = 12;
+    options.Password.RequireDigit = SbPasswordOptions.REQUIRE_DIGIT;
+    options.Password.RequireLowercase = SbPasswordOptions.REQUIRE_LOWERCASE;
+    options.Password.RequireNonAlphanumeric = SbPasswordOptions.REQUIRE_NON_ALPHANUMERIC;
+    options.Password.RequireUppercase = SbPasswordOptions.REQUIRE_UPPERCASE;
+    options.Password.RequiredLength = SbPasswordOptions.REQUIRED_LENGTH;
 });
 
 builder.Services.AddDistributedMemoryCache();
