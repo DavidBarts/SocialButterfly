@@ -1,6 +1,6 @@
 namespace SocialButterfly.Tool.Commands;
 
-public class Test(IServiceProvider serviceProvider, string[] args) : SocialButterfly.Tool.Command(serviceProvider, args)
+public class Test(IServiceProvider serviceProvider, string[] args) : Command(serviceProvider, args)
 {
     override public int Run()
     {

@@ -8,6 +8,7 @@ public static class Crypto
 {
     private static readonly Encoding ENCODING = Encoding.UTF8;
     private const int ITERATIONS = 1_200_000;
+    // for testing: private const int ITERATIONS = 390_000;
     private const int IV_LENGTH = 16;
     private const int KEY_LENGTH = 32;
     private const int SALT_LENGTH = 16;
@@ -24,7 +25,7 @@ public static class Crypto
         memoryStream.Write(aes.IV);
         using var cryptoStream = new CryptoStream(memoryStream, encryptor, CryptoStreamMode.Write);
         cryptoStream.Write(decrypted);
-        cryptoStream.Flush();
+        cryptoStream.Clear();
         return memoryStream.ToArray();
     }
 
