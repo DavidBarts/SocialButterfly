@@ -9,11 +9,11 @@ public class AesCrypt(IServiceProvider serviceProvider, string[] args) : Command
     {
         if (args.Length < 1)
         {
-            throw new CommandExit(2, "AesCat: expecting file name");
+            throw new CommandExit(2, "AesCrypt: expecting file name");
         }
         if (args.Length > 1)
         {
-            throw new CommandExit(2, "AesCat: unexpected extra argument(s)");
+            throw new CommandExit(2, "AesCrypt: unexpected extra argument(s)");
         }
         Console.Write("Encryption key: ");
         var password = Getpass.ReadLine();
