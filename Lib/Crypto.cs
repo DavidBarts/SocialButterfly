@@ -22,9 +22,9 @@ public static class Crypto
         using var aes = new AesGcm(key, TAG_LENGTH);
         aes.Encrypt(nonce, decrypted, ciphertext, tag);
         using var memoryStream = new MemoryStream();
-        memoryStream.Write(tag);
         memoryStream.Write(nonce);
         memoryStream.Write(ciphertext);
+        memoryStream.Write(tag);
         return memoryStream.ToArray();
     }
 
@@ -37,6 +37,7 @@ public static class Crypto
     {
         return Encrypt(decrypted, MakeKey(password, salt));
     }
+    
     public static byte[] Encrypt(string decrypted, string password, byte[] salt)
     {
         return Encrypt(ENCODING.GetBytes(decrypted), MakeKey(password, salt));
@@ -44,9 +45,9 @@ public static class Crypto
 
     public static byte[] Decrypt(byte[] encrypted, byte[] key)
     {
-        var tag = encrypted[..TAG_LENGTH];
-        var nonce = encrypted[TAG_LENGTH..(TAG_LENGTH+NONCE_LENGTH)];
-        var ciphertext = encrypted[(TAG_LENGTH+NONCE_LENGTH)..];
+        var nonce = encrypted[0..NONCE_LENGTH];
+        var ciphertext = encrypted[NONCE_LENGTH..^TAG_LENGTH];
+        var tag = encrypted[^TAG_LENGTH..];
         var decrypted = new byte[ciphertext.Length];
         using var aes = new AesGcm(key, TAG_LENGTH);
         aes.Decrypt(nonce, ciphertext, tag, decrypted);
