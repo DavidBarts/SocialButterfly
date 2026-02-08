@@ -44,13 +44,9 @@ builder.Services.AddSession(options =>
     options.Cookie.MaxAge = null;
 });
 
-var kmsHost = builder.Configuration.GetValue<string>("KmsHost")
-    ?? throw new InvalidOperationException("Parameter 'KmsHost' not found.");
-var kmsCertFile = builder.Configuration.GetValue<string>("KmsCertFile")
-    ?? throw new InvalidOperationException("Parameter 'KmsCertFile' not found.");
 Console.Write("KMS cert file passphrase: ");
 var kmsPassword = Getpass.ReadLine();
-builder.Services.AddSingleton<Kms>(new Kms(kmsHost, kmsCertFile, kmsPassword));
+builder.Services.AddSingleton<Kms>(new Kms(builder.Configuration.GetRequiredSection("Kms"), kmsPassword));
 
 var app = builder.Build();
 
