@@ -1,4 +1,5 @@
 using System.Buffers.Text;
+using System.Globalization;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 
@@ -11,6 +12,7 @@ public class Kms : IDisposable
     private readonly HttpClientHandler httpClientHandler;
     private readonly HttpClient httpClient;
     public string ApplicationKeyId { get; init; }
+    public DateTime ApplicationKeyCreated { get; init; }
 
     private class CreateKeyResponse
     {
@@ -33,52 +35,23 @@ public class Kms : IDisposable
         public required string Plaintext { get; set; }
     }
 
-    public class KeyInfo
-    {
-        public class KeyAttributes
-        {
-            public class CustomKeyAttributes
-            {
-                [JsonPropertyName("y-kms-key-context")]
-                public string? Context { get; set; }
-                [JsonPropertyName("y-ovh-iam-urn")]
-                public string? IamUrn { get; set; }
-            }
-            [JsonPropertyName("activation_date")]
-            public required DateTime ActivationDate { get; set; }
-            [JsonPropertyName("custom_attributes")]
-            public CustomKeyAttributes? CustomAttributes { get; set; }
-            [JsonPropertyName("initial_date")]
-            public required DateTime InitialDate { get; set; }
-            [JsonPropertyName("original_creation_date")]
-            public required DateTime OriginalCreationDate { get; set; }
-            public required string State { get; set; }
-        }
-        public required KeyAttributes Attributes { get; set; }
-        public required string Id { get; set; }
-        public required string Name { get; set; }
-        public required string[] Operations { get; set; }
-        public required int Size { get; set; }
-        public required string Type { get; set; }
-    }
-
     public Kms(IConfiguration config, string password)
     {
-        host = config.GetValue<string>("Host") ?? throw new ArgumentException("Parameter 'Host' not found.");
-        var certFile = config.GetValue<string>("CertFile") ?? throw new ArgumentException("Parameter 'CertFile' not found.");
-        ApplicationKeyId = config.GetValue<string>("ApplicationKeyId") ?? throw new ArgumentException("Parameter 'ApplicationKeyId' not found.");
-        var cert = X509CertificateLoader.LoadPkcs12FromFile(certFile, password, X509KeyStorageFlags.DefaultKeySet, null);
+        ApplicationKeyId = MustGet(config, "ApplicationKeyId");
+        ApplicationKeyCreated = DateTime.Parse(
+            MustGet(config, "ApplicationKeyCreated"), CultureInfo.InvariantCulture);
+        host = MustGet(config, "Host");
+        var cert = X509CertificateLoader.LoadPkcs12FromFile(
+            MustGet(config, "CertFile"), password, X509KeyStorageFlags.DefaultKeySet, null);
         httpClientHandler = new HttpClientHandler();
         httpClientHandler.ClientCertificates.Add(cert);
         httpClient = new HttpClient(httpClientHandler);
     }
 
-    public async Task<KeyInfo> GetKeyAsync(string keyId)
+    private static string MustGet(IConfiguration config, string name)
     {
-        var response = await httpClient.GetAsync($"https://{host}/v1/servicekey/{keyId}");
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<KeyInfo>()
-            ?? throw new HttpRequestException("Null deserialization result.");
+        return config.GetValue<string>(name)
+            ?? throw new ArgumentException($"Parameter '{name}' not found.");
     }
 
     public async Task<string> CreateKeyAsync(string name, byte[]? value = null)
