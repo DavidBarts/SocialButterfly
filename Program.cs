@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SocialButterfly.Data;
 using SocialButterfly.Lib;
+using SocialButterfly.Tool.Lib;
 
 (var toolArgs, var appArgs) = SocialButterfly.Tool.Runner.SplitArgs(args);
 
@@ -42,6 +43,14 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.Cookie.MaxAge = null;
 });
+
+var kmsHost = builder.Configuration.GetValue<string>("KmsHost")
+    ?? throw new InvalidOperationException("Parameter 'KmsHost' not found.");
+var kmsCertFile = builder.Configuration.GetValue<string>("KmsCertFile")
+    ?? throw new InvalidOperationException("Parameter 'KmsCertFile' not found.");
+Console.Write("KMS cert file passphrase: ");
+var kmsPassword = Getpass.ReadLine();
+builder.Services.AddSingleton<Kms>(new Kms(kmsHost, kmsCertFile, kmsPassword));
 
 var app = builder.Build();
 
