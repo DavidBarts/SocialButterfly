@@ -46,10 +46,11 @@ builder.Services.AddSession(options =>
 
 Console.Write("KMS cert file passphrase: ");
 var kmsPassword = Getpass.ReadLine();
-builder.Services.AddSingleton<Kms>(new Kms(builder.Configuration.GetRequiredSection("Kms"), kmsPassword));
+var kmsInstance = new Kms(builder.Configuration.GetRequiredSection("Kms"), kmsPassword);
+builder.Services.AddSingleton<Kms>(kmsInstance);
 
 var app = builder.Build();
-
+kmsInstance.Logger = app.Logger;
 // if we need to run a command-line app instead, this will do that (& exit)
 SocialButterfly.Tool.Runner.Run(app, toolArgs);
 

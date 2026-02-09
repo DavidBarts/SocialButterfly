@@ -9,7 +9,13 @@ public partial class User
 
     public string? Name { get; set; }
 
-    public byte[]? Salt { get; set; }
-
     public byte[]? Json { get; set; }
+
+    public int? Type { get; set; }
+
+    public string? KeyId { get; set; }
+
+    public DateTime? KeyCreated { get; set; }
+
+    public string? KeyToken { get; set; }
 }

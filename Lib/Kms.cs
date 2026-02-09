@@ -1,7 +1,9 @@
 using System.Buffers.Text;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text.Json.Serialization;
+using System.Text;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SocialButterfly.Lib;
 
@@ -11,6 +13,7 @@ public class Kms : IDisposable
     private readonly string host;
     private readonly HttpClientHandler httpClientHandler;
     private readonly HttpClient httpClient;
+    public ILogger Logger { get; set; }
     public string ApplicationKeyId { get; init; }
     public DateTime ApplicationKeyCreated { get; init; }
 
@@ -46,6 +49,7 @@ public class Kms : IDisposable
         httpClientHandler = new HttpClientHandler();
         httpClientHandler.ClientCertificates.Add(cert);
         httpClient = new HttpClient(httpClientHandler);
+        Logger = NullLogger<Kms>.Instance;
     }
 
     private static string MustGet(IConfiguration config, string name)
@@ -54,8 +58,9 @@ public class Kms : IDisposable
             ?? throw new ArgumentException($"Parameter '{name}' not found.");
     }
 
-    public async Task<string> CreateKeyAsync(string name, byte[]? value = null)
+    public async Task<string> CreateKeyAsync(string? name = null, byte[]? value = null)
     {
+        name ??= MakeName();
         var keyOps = new string[] { "wrapKey", "unwrapKey" };
         object requestData;
         if (value == null) {
@@ -76,7 +81,7 @@ public class Kms : IDisposable
             };
         }
         var response = await httpClient.PostAsJsonAsync($"https://{host}/v1/servicekey", requestData);
-        response.EnsureSuccessStatusCode();
+        await CheckResponse(response);
         var deserialized = await response.Content.ReadFromJsonAsync<CreateKeyResponse>()
             ?? throw new HttpRequestException("Null deserialization result.");
         return deserialized.Id;
@@ -86,16 +91,17 @@ public class Kms : IDisposable
     {
         var requestData = new { Reason = "unspecified" };
         var response = await httpClient.PostAsJsonAsync($"https://{host}/v1/servicekey/{keyId}/deactivate", requestData);
-        response.EnsureSuccessStatusCode();
+        await CheckResponse(response);
         response = await httpClient.DeleteAsync($"https://{host}/v1/servicekey/{keyId}");
-        response.EnsureSuccessStatusCode();
+        await CheckResponse(response);
     }
 
-    public async Task<(string keyToken, byte[] key)> WrapKeyAsync(string keyId, string keyName)
+    public async Task<(string keyToken, byte[] key)> WrapKeyAsync(string keyId, string? keyName = null)
     {
+        keyName ??= MakeName();
         var requestData = new { Name = keyName, Size = KEY_SIZE };
         var response = await httpClient.PostAsJsonAsync($"https://{host}/v1/servicekey/{keyId}/datakey", requestData);
-        response.EnsureSuccessStatusCode();
+        await CheckResponse(response);
         var deserialized = await response.Content.ReadFromJsonAsync<WrapKeyResponse>()
             ?? throw new HttpRequestException("Null deserialization result.");
         return (deserialized.Key, Convert.FromBase64String(deserialized.Plaintext));
@@ -105,10 +111,37 @@ public class Kms : IDisposable
     {
         var requestData = new { Key = keyToken };
         var response = await httpClient.PostAsJsonAsync($"https://{host}/v1/servicekey/{keyId}/datakey/decrypt", requestData);
-        response.EnsureSuccessStatusCode();
+        await CheckResponse(response);
         var deserialized = await response.Content.ReadFromJsonAsync<UnwrapKeyResponse>()
             ?? throw new HttpRequestException("Null deserialization result.");
         return Convert.FromBase64String(deserialized.Plaintext);
+    }
+
+    private async Task CheckResponse(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+        Logger.LogError(
+            "Got {code} {reason} response, details follow...{nl}{details}",
+            (int) response.StatusCode,
+            response.ReasonPhrase,
+            System.Environment.NewLine,
+            await response.Content.ReadAsStringAsync());
+        throw new HttpRequestException($"Unexpected {(int) response.StatusCode} {response.ReasonPhrase} response.");
+    }
+
+    public string MakeName()
+    {
+        const int NCHARS = 26;  /* at least 128 bits of randomness */
+        const string REPERTOIRE = "0123456789abcdefghijklmnopqrstuvwxyz";
+        var ret = new StringBuilder("sb-");
+        for (var i=0; i<NCHARS; i++)
+        {
+            ret.Append(REPERTOIRE[RandomNumberGenerator.GetInt32(0, REPERTOIRE.Length)]);
+        }
+        return ret.ToString();
     }
 
     public void Dispose() {

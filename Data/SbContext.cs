@@ -22,16 +22,18 @@ public partial class SbContext : DbContext
     {
         modelBuilder.Entity<User>(entity =>
         {
-            entity.ToTable("users");
+            entity.ToTable("Users");
 
             entity.HasIndex(e => e.Name, "users_name_ndx").IsUnique();
 
             entity.Property(e => e.Id)
                 .ValueGeneratedNever()
                 .HasColumnName("id");
-            entity.Property(e => e.Json).HasColumnName("json");
-            entity.Property(e => e.Name).HasColumnName("name");
-            entity.Property(e => e.Salt).HasColumnName("salt");
+            entity.Property(e => e.Json);
+            entity.Property(e => e.Name);
+            entity.Property(e => e.KeyId);
+            entity.Property(e => e.KeyCreated);
+            entity.Property(e => e.KeyToken);
         });
 
         OnModelCreatingPartial(modelBuilder);
