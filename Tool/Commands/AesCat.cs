@@ -15,8 +15,7 @@ public class AesCat(IServiceProvider serviceProvider, string[] args) : Command(s
         {
             throw new CommandExit(2, "AesCat: unexpected extra argument(s)");
         }
-        Console.Write("Decryption key: ");
-        var password = Getpass.ReadLine();
+        var password = serviceProvider.GetRequiredService<Passphrase>().Value;
         var encrypted = File.ReadAllBytes(args[0]);
         var salt = encrypted[..16];
         var remainder = encrypted[16..];

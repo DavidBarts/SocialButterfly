@@ -1,7 +1,6 @@
 namespace SocialButterfly.Tool.Commands;
 
 using SocialButterfly.Lib;
-using SocialButterfly.Tool.Lib;
 
 public class AesCrypt(IServiceProvider serviceProvider, string[] args) : Command(serviceProvider, args)
 {
@@ -15,15 +14,13 @@ public class AesCrypt(IServiceProvider serviceProvider, string[] args) : Command
         {
             throw new CommandExit(2, "AesCrypt: unexpected extra argument(s)");
         }
-        Console.Write("Encryption key: ");
-        var password = Getpass.ReadLine();
+        var password = serviceProvider.GetRequiredService<Passphrase>().Value;
         var plain = File.ReadAllBytes(args[0]);
         var salt = Crypto.MakeSalt();
         var encrypted = Crypto.Encrypt(plain, password, salt);
         using var outStream = new FileStream(args[0]+".aes", FileMode.Create);
         outStream.Write(salt, 0, salt.Length);
         outStream.Write(encrypted, 0, encrypted.Length);
-        Console.WriteLine($"salt = {salt.Length}, encrypted = {encrypted.Length}, total = {salt.Length+encrypted.Length}");
         return 0;
     }
 }

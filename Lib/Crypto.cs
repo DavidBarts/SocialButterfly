@@ -9,10 +9,10 @@ public static class Crypto
     private static readonly Encoding ENCODING = Encoding.UTF8;
     private const int ITERATIONS = 1_200_000;
     // for testing: private const int ITERATIONS = 390_000;
-    private static readonly int NONCE_LENGTH = AesGcm.NonceByteSizes.MaxSize;
-    private static readonly int TAG_LENGTH = AesGcm.TagByteSizes.MaxSize;
-    private const int KEY_LENGTH = 32;
-    private const int SALT_LENGTH = 16;
+    public static readonly int NONCE_LENGTH = AesGcm.NonceByteSizes.MaxSize;
+    public static readonly int TAG_LENGTH = AesGcm.TagByteSizes.MaxSize;
+    public const int KEY_LENGTH = 32;
+    public const int SALT_LENGTH = 16;
 
     public static byte[] Encrypt(byte[] decrypted, byte[] key)
     {

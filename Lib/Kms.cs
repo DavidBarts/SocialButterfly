@@ -13,7 +13,8 @@ public class Kms : IDisposable
     private readonly string host;
     private readonly HttpClientHandler httpClientHandler;
     private readonly HttpClient httpClient;
-    public ILogger Logger { get; set; }
+    private readonly ILogger<Kms> logger;
+    private readonly IConfiguration config;
     public string ApplicationKeyId { get; init; }
     public DateTime ApplicationKeyCreated { get; init; }
 
@@ -38,21 +39,22 @@ public class Kms : IDisposable
         public required string Plaintext { get; set; }
     }
 
-    public Kms(IConfiguration config, string password)
+    public Kms(IConfiguration config, Passphrase passphrase, ILogger<Kms> logger)
     {
-        ApplicationKeyId = MustGet(config, "ApplicationKeyId");
+        this.config = config.GetRequiredSection("Kms");
+        this.logger = logger;
+        ApplicationKeyId = MustGet("ApplicationKeyId");
         ApplicationKeyCreated = DateTime.Parse(
-            MustGet(config, "ApplicationKeyCreated"), CultureInfo.InvariantCulture);
-        host = MustGet(config, "Host");
+            MustGet("ApplicationKeyCreated"), CultureInfo.InvariantCulture);
+        host = MustGet("Host");
         var cert = X509CertificateLoader.LoadPkcs12FromFile(
-            MustGet(config, "CertFile"), password, X509KeyStorageFlags.DefaultKeySet, null);
+            MustGet("CertFile"), passphrase.Value, X509KeyStorageFlags.DefaultKeySet, null);
         httpClientHandler = new HttpClientHandler();
         httpClientHandler.ClientCertificates.Add(cert);
         httpClient = new HttpClient(httpClientHandler);
-        Logger = NullLogger<Kms>.Instance;
     }
 
-    private static string MustGet(IConfiguration config, string name)
+    private string MustGet(string name)
     {
         return config.GetValue<string>(name)
             ?? throw new ArgumentException($"Parameter '{name}' not found.");
@@ -123,11 +125,11 @@ public class Kms : IDisposable
         {
             return;
         }
-        Logger.LogError(
+        logger.LogError(
             "Got {code} {reason} response, details follow...{nl}{details}",
             (int) response.StatusCode,
             response.ReasonPhrase,
-            System.Environment.NewLine,
+            Environment.NewLine,
             await response.Content.ReadAsStringAsync());
         throw new HttpRequestException($"Unexpected {(int) response.StatusCode} {response.ReasonPhrase} response.");
     }
@@ -137,7 +139,7 @@ public class Kms : IDisposable
         const int NCHARS = 26;  /* at least 128 bits of randomness */
         const string REPERTOIRE = "0123456789abcdefghijklmnopqrstuvwxyz";
         var ret = new StringBuilder("sb-");
-        for (var i=0; i<NCHARS; i++)
+        for (var i = 0; i < NCHARS; i++)
         {
             ret.Append(REPERTOIRE[RandomNumberGenerator.GetInt32(0, REPERTOIRE.Length)]);
         }
