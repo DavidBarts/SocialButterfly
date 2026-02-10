@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using SocialButterfly.Data;
 using SocialButterfly.Lib;
@@ -49,7 +50,7 @@ builder.Services.AddSingleton(Passphrase.Instance);
 builder.Services.AddSingleton<Kms>();
 builder.Services.AddSingleton<Secret>();
 
-builder.Services.AddTransient<SmtpEmailSender>();
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 var app = builder.Build();
 // if we need to run a command-line app instead, this will do that (& exit)

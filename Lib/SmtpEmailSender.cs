@@ -13,10 +13,12 @@ public class SmtpEmailSender(IConfiguration config, Secret secret) : IEmailSende
     {
         var mailMessage = new MailMessage(
             config.GetRequiredValue<string>("Sender"),
-            recipient);
-        mailMessage.Subject = subject;
-        mailMessage.Body = message;
-        mailMessage.IsBodyHtml = true;
+            recipient)
+        {
+            Subject = subject,
+            Body = message,
+            IsBodyHtml = true
+        };
         using var smtpClient = new SmtpClient(
             config.GetRequiredValue<string>("Host"),
             config.GetRequiredValue<int>("Port"));
