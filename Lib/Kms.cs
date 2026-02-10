@@ -56,8 +56,7 @@ public class Kms : IDisposable
 
     private string MustGet(string name)
     {
-        return config.GetValue<string>(name)
-            ?? throw new ArgumentException($"Parameter '{name}' not found.");
+        return config.GetRequiredValue<string>(name);
     }
 
     public async Task<string> CreateKeyAsync(string? name = null, byte[]? value = null)

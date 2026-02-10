@@ -49,6 +49,8 @@ builder.Services.AddSingleton(Passphrase.Instance);
 builder.Services.AddSingleton<Kms>();
 builder.Services.AddSingleton<Secret>();
 
+builder.Services.AddTransient<SmtpEmailSender>();
+
 var app = builder.Build();
 // if we need to run a command-line app instead, this will do that (& exit)
 SocialButterfly.Tool.Runner.Run(app, toolArgs);
