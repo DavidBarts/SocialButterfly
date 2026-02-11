@@ -23,7 +23,7 @@ public partial class CreateUser(IServiceProvider serviceProvider, string[] args)
         var kms = serviceProvider.GetRequiredService<Kms>();
 
         /* parse command-line args */
-        var rootCommand = new RootCommand("Create a new user account.");
+        var rootCommand = new Command("CreateUser", "Create a new user account.");
         Option userTypeOption = new Option<string>("--type") {
             DefaultValueFactory = _ => UserType.Normal.ToString(),
             Description = "User type (normal, super, or other user to be restricted to)."
@@ -155,8 +155,7 @@ public partial class CreateUser(IServiceProvider serviceProvider, string[] args)
     }
 
     /* This is pretty rudimentary, basically a C# implementation of the
-       email checking logic in
-       https://www.npmjs.com/package/aspnet-client-validation/v/0.5.0?activeTab=code */
+       email checking logic in Jquery validation. */
     private bool IsEmailAddress(string s)
     {
         return MyRegex().IsMatch(s);
