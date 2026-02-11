@@ -1,4 +1,4 @@
-namespace SocialButterfly.Tool.Lib;
+namespace SocialButterfly.Lib;
 
 using System.Text;
 

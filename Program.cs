@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using SocialButterfly.Data;
 using SocialButterfly.Lib;
-using SocialButterfly.Tool.Lib;
 
 (var toolArgs, var appArgs) = SocialButterfly.Tool.Runner.SplitArgs(args);
 

@@ -1,5 +1,3 @@
-using SocialButterfly.Tool.Lib;
-
 namespace SocialButterfly.Lib;
 
 public class Secret

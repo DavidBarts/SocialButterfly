@@ -1,7 +1,6 @@
 namespace SocialButterfly.Tool.Commands;
 
 using SocialButterfly.Lib;
-using SocialButterfly.Tool.Lib;
 
 public class AesCat(IServiceProvider serviceProvider, string[] args) : Command(serviceProvider, args)
 {
