@@ -1,12 +1,26 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using Serilog.Events;
 using SocialButterfly.Data;
 using SocialButterfly.Lib;
 
 (var toolArgs, var appArgs) = SocialButterfly.Tool.Runner.SplitArgs(args);
 
 var builder = WebApplication.CreateBuilder(appArgs);
+
+// Log to a rotating file, not the console
+builder.Logging.ClearProviders();
+string logFile = builder.Configuration.GetValue<string>("LogFile") ?? "socialbutterfly-.log";
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning)
+    .WriteTo.File(logFile, rollingInterval: RollingInterval.Day, retainedFileCountLimit: 14)
+    .CreateLogger();
+builder.Services.AddSerilog();
+Console.WriteLine($"Logging to {logFile}.");
 
 // Add services to the container.
 var authConnectionString = builder.Configuration.GetConnectionString("AuthConnection") ?? throw new InvalidOperationException("Connection string 'AuthConnection' not found.");
@@ -52,6 +66,8 @@ builder.Services.AddSingleton<Secret>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 var app = builder.Build();
+app.UseSerilogRequestLogging();
+
 // if we need to run a command-line app instead, this will do that (& exit)
 SocialButterfly.Tool.Runner.Run(app, toolArgs);
 

@@ -10,7 +10,7 @@ public class Autologout(RequestDelegate next, IConfiguration config)
 {
     private readonly RequestDelegate _next = next;
     private const string SESSION_NAME = "LastRequestTime";
-    private TimeSpan maxIdleTime = config.GetRequiredValue<TimeSpan>("MaxIdleTime");
+    private readonly TimeSpan maxIdleTime = config.GetRequiredValue<TimeSpan>("MaxIdleTime");
 
     public async Task InvokeAsync(HttpContext context, SignInManager<IdentityUser> signInManager, ILogger<Autologout> logger)
     {
