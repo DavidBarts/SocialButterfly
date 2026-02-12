@@ -76,6 +76,8 @@ app.UseAuthorization();
 
 app.UseSession();
 
+app.UseAutologout();  /* requires auth and session */
+
 app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();

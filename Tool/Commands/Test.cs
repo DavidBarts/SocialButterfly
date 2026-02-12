@@ -4,10 +4,9 @@ public class Test(IServiceProvider serviceProvider, string[] args) : Command(ser
 {
     override public int Run()
     {
-        var config = serviceProvider.GetRequiredService<IConfiguration>();
-        Console.WriteLine("This is a test. Arguments follow:");
-        Console.WriteLine(string.Join(' ', args));
-        Console.WriteLine($"Allowed hosts: {config.GetValue<string>("AllowedHosts")}");
+        var email = serviceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender>();
+        email.SendEmailAsync("david.w.barts@gmail.com", "Test", "This is a test.\n").Wait();
+        Console.WriteLine("Email sent (I hope).");
         return 0;
     }
 }
